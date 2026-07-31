@@ -146,7 +146,7 @@
       performSearch(input.value.trim());
     });
 
-    // Mobile Safari Listener: Listens for tap messages sent from inside the iframe
+    // Listens for link taps inside the iframe and forces them to re-render through /api/translate
     window.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'LINGUEE_SEARCH') {
         performSearch(event.data.query);
