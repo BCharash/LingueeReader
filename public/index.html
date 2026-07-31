@@ -186,9 +186,12 @@
     const btnIncrease = document.getElementById('font-increase');
     const displaySize = document.getElementById('font-size-display');
 
-    // Retrieve saved font size from localStorage or fallback to default (115%)
+    // Retrieve saved font size or fallback to default (115%)
     const STORAGE_KEY = 'linguee_reader_font_size';
     let currentFontPercent = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 115;
+    
+    // Set the step increment (e.g., 5 for 5% steps)
+    const STEP_SIZE = 5;
 
     function applyFontSize() {
       displaySize.textContent = `${currentFontPercent}%`;
@@ -204,14 +207,14 @@
 
     btnIncrease.addEventListener('click', () => {
       if (currentFontPercent < 200) {
-        currentFontPercent += 15;
+        currentFontPercent += STEP_SIZE;
         applyFontSize();
       }
     });
 
     btnDecrease.addEventListener('click', () => {
       if (currentFontPercent > 80) {
-        currentFontPercent -= 15;
+        currentFontPercent -= STEP_SIZE;
         applyFontSize();
       }
     });
