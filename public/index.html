@@ -1,206 +1,235 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Modern Web App Capability (Replaces deprecated Apple tag) -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Dicionário PT/EN</title>
+  <meta name="theme-color" content="#ffffff">
+  
+  <title>Linguee Reader</title>
+  
+  <!-- CSS Styles -->
   <style>
     :root {
-      --bg-color: #000000;
-      --card-bg: #121212;
-      --text-main: #FFFFFF;
-      --text-sub: #A0A0A0;
-      --accent-gold: #FFD700;
-      --accent-green: #4EED94;
-      --border-color: #2A2A2A;
+      --primary-color: #2563eb;
+      --background-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
-      padding: 16px;
-      background-color: var(--bg-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--background-color);
       color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 24px;
-      line-height: 1.5;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
     }
 
     .container {
-      max-width: 650px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: 680px;
+      margin-top: 20px;
+    }
+
+    header {
+      margin-bottom: 24px;
+      text-align: center;
     }
 
     h1 {
-      font-size: 28px;
-      color: var(--text-sub);
-      margin-bottom: 16px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
     }
 
-    .search-box {
-      width: 100%;
-      box-sizing: border-box;
-      background-color: #1A1A1A;
-      color: #FFFFFF;
-      border: 3px solid #444444;
-      border-radius: 12px;
-      padding: 18px 20px;
-      font-size: 28px;
+    .search-form {
+      display: flex;
+      gap: 10px;
       margin-bottom: 24px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
       outline: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: border-color 0.2s ease;
     }
 
-    .search-box:focus {
-      border-color: var(--accent-gold);
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
     }
 
-    .card {
+    button {
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: var(--primary-color);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #1d4ed8;
+    }
+
+    .results-card {
       background-color: var(--card-bg);
-      border: 2px solid var(--border-color);
-      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
       padding: 24px;
-      margin-bottom: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      min-height: 150px;
     }
 
-    .source-word {
-      font-size: 32px;
-      font-weight: bold;
-      color: var(--accent-gold);
+    .status-message {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .word-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .phonetic {
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .definition-group {
+      margin-bottom: 16px;
+    }
+
+    .part-of-speech {
+      font-weight: 600;
+      color: var(--primary-color);
+      text-transform: lowercase;
       margin-bottom: 6px;
     }
 
-    .pos-tag {
-      font-size: 20px;
-      color: var(--text-sub);
-      font-style: italic;
-      margin-bottom: 12px;
+    ul.definitions {
+      list-style-type: disc;
+      padding-left: 20px;
     }
 
-    .translation-list {
-      font-size: 26px;
-      color: var(--accent-green);
-      font-weight: 600;
-    }
-
-    .example-title {
-      font-size: 22px;
-      color: var(--text-sub);
-      text-transform: uppercase;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 4px;
-    }
-
-    .example-item {
-      margin-bottom: 14px;
-    }
-
-    .example-src {
-      color: #FFFFFF;
-      font-size: 22px;
-    }
-
-    .example-tgt {
-      color: var(--accent-green);
-      font-size: 22px;
-    }
-
-    .status-msg {
-      font-size: 24px;
-      color: var(--text-sub);
-      text-align: center;
-      margin-top: 40px;
+    ul.definitions li {
+      margin-bottom: 6px;
+      line-height: 1.4;
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h1>Português ⇄ English</h1>
-    <input 
-      type="text" 
-      id="searchInput" 
-      class="search-box" 
-      placeholder="Pesquisar..." 
-      autocorrect="off" 
-      autocapitalize="off"
-    />
+    <header>
+      <h1>Linguee Reader</h1>
+    </header>
 
-    <div id="status" class="status-msg">Digite uma palavra acima...</div>
-    <div id="results"></div>
+    <form class="search-form" id="searchForm">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Enter a word to lookup..." 
+        required 
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+      />
+      <button type="submit">Search</button>
+    </form>
+
+    <main class="results-card" id="resultsContainer">
+      <p class="status-message">Enter a word above and click Search.</p>
+    </main>
   </div>
 
+  <!-- Client JavaScript for Free Dictionary API Fetching -->
   <script>
-    const input = document.getElementById('searchInput');
-    const status = document.getElementById('status');
-    const results = document.getElementById('results');
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+    const resultsContainer = document.getElementById('resultsContainer');
 
-    let debounceTimer;
+    searchForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = searchInput.value.trim();
 
-    input.addEventListener('input', (e) => {
-      clearTimeout(debounceTimer);
-      const query = e.target.value.trim();
+      if (!query) return;
 
-      if (!query) {
-        status.innerText = 'Digite uma palavra acima...';
-        results.innerHTML = '';
-        return;
-      }
+      resultsContainer.innerHTML = `<p class="status-message">Searching for "${query}"...</p>`;
 
-      status.innerText = 'A pesquisar...';
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`);
 
-      debounceTimer = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-          const data = await res.json();
-
-          if (!data.results || data.results.length === 0) {
-            status.innerText = 'Nenhum resultado encontrado.';
-            results.innerHTML = '';
-            return;
+        if (!response.ok) {
+          if (response.status === 404) {
+            resultsContainer.innerHTML = `<p class="status-message">No definitions found for "<strong>${query}</strong>".</p>`;
+          } else {
+            resultsContainer.innerHTML = `<p class="status-message">Error retrieving definition (Status ${response.status}). Please try again.</p>`;
           }
-
-          status.innerText = '';
-          
-          let html = '';
-
-          // Render Main Word Cards
-          data.results.forEach(item => {
-            html += `
-              <div class="card">
-                <div class="source-word">${item.word}</div>
-                ${item.pos ? `<div class="pos-tag">${item.pos}</div>` : ''}
-                <div class="translation-list">${item.translations.join(' • ')}</div>
-              </div>
-            `;
-          });
-
-          // Render Context Examples Card
-          if (data.examples && data.examples.length > 0) {
-            html += `<div class="card">
-              <div class="example-title">Exemplos de Contexto</div>`;
-            data.examples.forEach(ex => {
-              html += `
-                <div class="example-item">
-                  <div class="example-src">• ${ex.source}</div>
-                  <div class="example-tgt">&nbsp; ${ex.target}</div>
-                </div>
-              `;
-            });
-            html += `</div>`;
-          }
-
-          results.innerHTML = html;
-
-        } catch (err) {
-          status.innerText = 'Erro ao carregar dados.';
+          return;
         }
-      }, 400);
+
+        const data = await response.json();
+        renderResults(data[0]);
+
+      } catch (error) {
+        console.error('Fetch error:', error);
+        resultsContainer.innerHTML = `<p class="status-message">Unable to connect to dictionary server. Check your connection or console logs.</p>`;
+      }
     });
+
+    function renderResults(entry) {
+      const { word, phonetic, phonetics, meanings } = entry;
+      
+      const phoneticText = phonetic || (phonetics && phonetics.find(p => p.text)?.text) || '';
+
+      let html = `
+        <h2 class="word-title">${word}</h2>
+        ${phoneticText ? `<p class="phonetic">${phoneticText}</p>` : ''}
+      `;
+
+      meanings.forEach(meaning => {
+        html += `
+          <div class="definition-group">
+            <div class="part-of-speech">${meaning.partOfSpeech}</div>
+            <ul class="definitions">
+        `;
+
+        meaning.definitions.slice(0, 3).forEach(def => {
+          html += `<li>${def.definition}</li>`;
+        });
+
+        html += `
+            </ul>
+          </div>
+        `;
+      });
+
+      resultsContainer.innerHTML = html;
+    }
   </script>
 </body>
 </html>
