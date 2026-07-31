@@ -20,8 +20,6 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    
-    // Extract translated text safely
     const translation = data.responseData?.translatedText || 'No translation found';
 
     return res.status(200).json({ translation, raw: data });
