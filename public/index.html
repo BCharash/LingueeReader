@@ -37,18 +37,57 @@
     }
 
     header {
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .title-group {
+      text-align: left;
     }
 
     h1 {
-      margin: 0 0 4px 0;
-      font-size: 1.6rem;
+      margin: 0;
+      font-size: 1.5rem;
     }
 
     .subtitle {
       color: var(--text-secondary);
-      font-size: 0.9rem;
-      margin: 0;
+      font-size: 0.85rem;
+      margin: 2px 0 0 0;
+    }
+
+    /* Font Size Control Controls */
+    .font-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 4px 8px;
+    }
+
+    .font-btn {
+      background: none;
+      border: none;
+      color: var(--accent-color);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .font-btn:hover {
+      background-color: var(--input-bg);
+    }
+
+    .font-indicator {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      min-width: 45px;
+      text-align: center;
     }
 
     .search-form {
@@ -72,7 +111,7 @@
       border-color: var(--accent-color);
     }
 
-    button {
+    .search-btn {
       padding: 12px 20px;
       font-size: 1rem;
       font-weight: 600;
@@ -84,7 +123,7 @@
       transition: opacity 0.2s;
     }
 
-    button:hover {
+    .search-btn:hover {
       opacity: 0.9;
     }
 
@@ -110,8 +149,17 @@
 
   <div class="container">
     <header>
-      <h1>Linguee Reader</h1>
-      <p class="subtitle">Dark-mode reader with active word links</p>
+      <div class="title-group">
+        <h1>Linguee Reader</h1>
+        <p class="subtitle">Dark-mode reader with active word links</p>
+      </div>
+
+      <!-- Interactive Font Adjustment Controls -->
+      <div class="font-controls">
+        <button type="button" class="font-btn" id="font-decrease" title="Decrease Font Size">A-</button>
+        <span class="font-indicator" id="font-size-display">115%</span>
+        <button type="button" class="font-btn" id="font-increase" title="Increase Font Size">A+</button>
+      </div>
     </header>
 
     <form class="search-form" id="search-form">
@@ -122,7 +170,7 @@
         autocomplete="off" 
         autofocus
       >
-      <button type="submit">Search</button>
+      <button type="submit" class="search-btn">Search</button>
     </form>
 
     <div class="frame-container">
@@ -134,11 +182,39 @@
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
     const iframe = document.getElementById('linguee-frame');
+    const btnDecrease = document.getElementById('font-decrease');
+    const btnIncrease = document.getElementById('font-increase');
+    const displaySize = document.getElementById('font-size-display');
+
+    // Font scaling state (Percentage base)
+    let currentFontPercent = 115;
+
+    function applyFontSize() {
+      displaySize.textContent = `${currentFontPercent}%`;
+      // Send scale command to iframe
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'SET_FONT_SIZE', percent: currentFontPercent }, '*');
+      }
+    }
+
+    btnIncrease.addEventListener('click', () => {
+      if (currentFontPercent < 200) {
+        currentFontPercent += 15;
+        applyFontSize();
+      }
+    });
+
+    btnDecrease.addEventListener('click', () => {
+      if (currentFontPercent > 80) {
+        currentFontPercent -= 15;
+        applyFontSize();
+      }
+    });
 
     function performSearch(query) {
       if (!query) return;
       input.value = decodeURIComponent(query);
-      iframe.src = `/api/translate?q=${encodeURIComponent(query)}`;
+      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPercent}`;
     }
 
     form.addEventListener('submit', (e) => {
@@ -146,7 +222,12 @@
       performSearch(input.value.trim());
     });
 
-    // Listens for link taps inside the iframe and forces them to re-render through /api/translate
+    // When iframe finishes loading, re-apply the selected font size
+    iframe.addEventListener('load', () => {
+      applyFontSize();
+    });
+
+    // Receive tap navigation events from inside iframe
     window.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'LINGUEE_SEARCH') {
         performSearch(event.data.query);
