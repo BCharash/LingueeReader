@@ -41,7 +41,7 @@ export default async function handler(req, res) {
               // Pattern 2: Translation page links (/translation/satisfeito.html)
               else if (href.includes('/translation/') || href.endsWith('.html')) {
                 var pathParts = href.split('/');
-                var filename = pathParts[pathParts.length - 1]; // e.g. "satisfeito.html"
+                var filename = pathParts[pathParts.length - 1];
                 term = filename.replace('.html', '').replace(/\\+/g, ' ');
               }
               // Pattern 3: General search paths (/english-portuguese/search?...)
@@ -53,7 +53,6 @@ export default async function handler(req, res) {
               if (term) {
                 e.preventDefault();
                 e.stopPropagation();
-                // Send extracted term to parent to reload dark mode API endpoint
                 window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
               } else if (href.startsWith('http')) {
                 e.preventDefault();
@@ -65,7 +64,7 @@ export default async function handler(req, res) {
       </script>
     `;
 
-    // Dark Mode Stylesheet
+    // Dark Mode Stylesheet + Larger Typography Rules
     const darkStyles = `
       <style>
         body, html {
@@ -73,45 +72,65 @@ export default async function handler(req, res) {
           color: #e0e0e0 !important;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
           padding: 10px !important;
+          font-size: 1.15rem !important; /* Increased global base font size */
+          line-height: 1.6 !important;
           -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
+
         /* Hide clutter: headers, footers, ads, and banners */
         #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner, .header_container, .ad_container {
           display: none !important;
         }
+
         /* Card Containers */
         #content_container, .exact, .inexact, .lemma, .dictionary {
           background-color: #1e1e1e !important;
           color: #e0e0e0 !important;
           border: 1px solid #333333 !important;
           border-radius: 8px !important;
-          padding: 12px !important;
+          padding: 14px !important;
           margin-bottom: 15px !important;
         }
-        /* High-Contrast Links */
+
+        /* Dictionary Term Headings */
+        .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma {
+          font-size: 1.4rem !important;
+          font-weight: 700 !important;
+        }
+
+        /* High-Contrast Links & Words */
         a, a * {
           color: #4da6ff !important;
           text-decoration: none !important;
           cursor: pointer !important;
+          font-size: 1.15rem !important;
         }
         a:hover, a:active {
           text-decoration: underline !important;
         }
+
+        /* Word Type Tags (e.g., noun, verb) */
         .tag_lemma, .tag_type, .wordtype {
           color: #a0a0a0 !important;
           font-style: italic !important;
+          font-size: 1rem !important;
         }
+
         /* Sentence Example Pairs */
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
+          font-size: 1.1rem !important;
         }
         .example .tag_s, .example .tag_t {
           color: #ffffff !important;
+          font-size: 1.1rem !important;
         }
+
         td {
           border-color: #333333 !important;
-          padding: 8px !important;
+          padding: 10px !important;
+          font-size: 1.1rem !important;
         }
       </style>
       <base href="https://www.linguee.com/">
