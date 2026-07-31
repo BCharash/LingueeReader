@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const { q, source = 'en', target = 'pt' } = req.query;
+  const { q } = req.query;
 
   if (!q) {
     return res.status(400).json({ error: 'Query parameter "q" is required' });
@@ -9,20 +9,25 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
+  const query = encodeURIComponent(q.trim());
+  const enToPtUrl = `https://api.mymemory.translated.net/get?q=${query}&langpair=en|pt`;
+  const ptToEnUrl = `https://api.mymemory.translated.net/get?q=${query}&langpair=pt|en`;
+
   try {
-    const langPair = `${source === 'auto' ? 'en' : source}|${target}`;
-    const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=${langPair}`;
+    // Fetch both translation directions simultaneously
+    const [enToPtRes, ptToEnRes] = await Promise.all([
+      fetch(enToPtUrl),
+      fetch(ptToEnUrl)
+    ]);
 
-    const response = await fetch(apiUrl);
+    const enToPtData = enToPtRes.ok ? await enToPtRes.json() : null;
+    const ptToEnData = ptToEnRes.ok ? await ptToEnRes.json() : null;
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Upstream translation error' });
-    }
-
-    const data = await response.json();
-    const translation = data.responseData?.translatedText || 'No translation found';
-
-    return res.status(200).json({ translation, raw: data });
+    return res.status(200).json({
+      query: q,
+      enToPt: enToPtData?.responseData?.translatedText || 'No translation found',
+      ptToEn: ptToEnData?.responseData?.translatedText || 'No translation found'
+    });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch translation data' });
   }
