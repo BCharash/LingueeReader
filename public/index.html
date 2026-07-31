@@ -110,16 +110,12 @@
       margin: 20px 0;
     }
 
-    .translation-item {
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .translation-item:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-      padding-bottom: 0;
+    .translation-result {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--accent-color);
+      text-align: center;
+      margin: 10px 0;
     }
   </style>
 </head>
@@ -158,10 +154,11 @@
 
       if (!query) return;
 
-      resultsContainer.innerHTML = '<p class="status-message">Searching Linguee...</p>';
+      resultsContainer.innerHTML = '<p class="status-message">Searching...</p>';
 
       try {
-        const response = await fetch(`/api/linguee?q=${encodeURIComponent(query)}&source=auto&target=pt`);
+        // Points directly to /api/translate
+        const response = await fetch(`/api/translate?q=${encodeURIComponent(query)}&source=auto&target=pt`);
 
         if (!response.ok) {
           throw new Error(`Server returned HTTP ${response.status}`);
@@ -181,26 +178,16 @@
     });
 
     function renderResults(data) {
-      if (!data || (Array.isArray(data) && data.length === 0)) {
+      if (!data || !data.translation) {
         resultsContainer.innerHTML = '<p class="status-message">No results found for that query.</p>';
         return;
       }
 
-      if (typeof data === 'string') {
-        resultsContainer.innerHTML = `<div class="translation-item"><p>${data}</p></div>`;
-        return;
-      }
-
-      if (Array.isArray(data)) {
-        const html = data.map(item => {
-          const text = typeof item === 'string' ? item : (item.text || item.translation || JSON.stringify(item));
-          return `<div class="translation-item"><p>${text}</p></div>`;
-        }).join('');
-        resultsContainer.innerHTML = html;
-        return;
-      }
-
-      resultsContainer.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-all;">${JSON.stringify(data, null, 2)}</pre>`;
+      resultsContainer.innerHTML = `
+        <div class="translation-result">
+          <p>${data.translation}</p>
+        </div>
+      `;
     }
   </script>
 </body>
