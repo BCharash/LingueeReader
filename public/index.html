@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Modern Web App Capability (Replaces deprecated Apple tag) -->
+  <!-- Modern Web App Capability -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#ffffff">
@@ -199,6 +199,7 @@
     const searchInput = document.getElementById('searchInput');
     const resultsContainer = document.getElementById('resultsContainer');
 
+    // Only fire the search query when submitting the form (clicking Search or hitting Enter)
     searchForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const query = searchInput.value.trim();
