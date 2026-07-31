@@ -4,10 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Modern Web App Capability -->
+  <!-- Modern Web App Capability (Replaces deprecated Apple tag) -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#ffffff">
+  
+  <!-- Favicon Data URI to prevent 404 console errors -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
   
   <title>Linguee Reader</title>
   
@@ -205,7 +208,6 @@
       resultsContainer.innerHTML = `<p class="status-message">Searching Linguee for "${query}"...</p>`;
 
       try {
-        // Fetch from Linguee API endpoint with EN <-> PT pair
         const response = await fetch(`https://linguee-api.herokuapp.com/api?q=${encodeURIComponent(query)}&source=auto&target=pt`);
 
         if (!response.ok) {
