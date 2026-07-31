@@ -17,18 +17,6 @@
       --input-bg: #2a2a2a;
     }
 
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg-color: #f4f6f8;
-        --card-bg: #ffffff;
-        --text-color: #1a1a1a;
-        --text-secondary: #666666;
-        --accent-color: #0066cc;
-        --border-color: #e0e0e0;
-        --input-bg: #ffffff;
-      }
-    }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg-color);
@@ -105,7 +93,7 @@
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 20px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       min-height: 100px;
     }
 
@@ -132,11 +120,6 @@
       border-bottom: none;
       margin-bottom: 0;
       padding-bottom: 0;
-    }
-
-    .term {
-      font-weight: bold;
-      color: var(--accent-color);
     }
   </style>
 </head>
@@ -178,8 +161,7 @@
       resultsContainer.innerHTML = '<p class="status-message">Searching Linguee...</p>';
 
       try {
-        // Points to relative endpoint to avoid browser CORS policy errors
-        const response = await fetch(`/api/translate?q=${encodeURIComponent(query)}&source=auto&target=pt`);
+        const response = await fetch(`/api/linguee?q=${encodeURIComponent(query)}&source=auto&target=pt`);
 
         if (!response.ok) {
           throw new Error(`Server returned HTTP ${response.status}`);
@@ -204,7 +186,6 @@
         return;
       }
 
-      // Handle simple string/array outputs or custom JSON responses
       if (typeof data === 'string') {
         resultsContainer.innerHTML = `<div class="translation-item"><p>${data}</p></div>`;
         return;
@@ -219,7 +200,7 @@
         return;
       }
 
-      resultsContainer.innerHTML = `<pre style="white-space: pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+      resultsContainer.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-all;">${JSON.stringify(data, null, 2)}</pre>`;
     }
   </script>
 </body>
