@@ -157,7 +157,7 @@
       <!-- Interactive Font Adjustment Controls -->
       <div class="font-controls">
         <button type="button" class="font-btn" id="font-decrease" title="Decrease Font Size">A-</button>
-        <span class="font-indicator" id="font-size-display">115%</span>
+        <span class="font-indicator" id="font-size-display">100%</span>
         <button type="button" class="font-btn" id="font-increase" title="Increase Font Size">A+</button>
       </div>
     </header>
@@ -186,11 +186,11 @@
     const btnIncrease = document.getElementById('font-increase');
     const displaySize = document.getElementById('font-size-display');
 
-    // Retrieve saved font size or fallback to default (115%)
+    // Retrieve saved font size or fallback to 100% default
     const STORAGE_KEY = 'linguee_reader_font_size';
-    let currentFontPercent = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 115;
+    let currentFontPercent = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 100;
     
-    // Set the step increment (e.g., 5 for 5% steps)
+    // Step increment set to 5% steps
     const STEP_SIZE = 5;
 
     function applyFontSize() {
@@ -213,7 +213,7 @@
     });
 
     btnDecrease.addEventListener('click', () => {
-      if (currentFontPercent > 80) {
+      if (currentFontPercent > 50) {
         currentFontPercent -= STEP_SIZE;
         applyFontSize();
       }
