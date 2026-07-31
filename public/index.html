@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Modern Web App Capability (Replaces deprecated Apple tag) -->
+  <!-- Modern Web App Capability -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#ffffff">
@@ -20,6 +20,7 @@
       --text-main: #0f172a;
       --text-muted: #64748b;
       --border-color: #e2e8f0;
+      --accent-color: #059669;
     }
 
     * {
@@ -108,36 +109,60 @@
       margin-top: 30px;
     }
 
+    .word-header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
     .word-title {
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       font-weight: 700;
-      margin-bottom: 4px;
+      color: var(--text-main);
     }
 
-    .phonetic {
-      color: var(--text-muted);
-      margin-bottom: 16px;
-    }
-
-    .definition-group {
-      margin-bottom: 16px;
-    }
-
-    .part-of-speech {
+    .pos-tag {
+      display: inline-block;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: var(--primary-color);
+      color: var(--text-muted);
       text-transform: lowercase;
+      margin-left: 8px;
+    }
+
+    .translation-group {
+      margin-bottom: 16px;
+    }
+
+    .translation-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--accent-color);
       margin-bottom: 6px;
     }
 
-    ul.definitions {
-      list-style-type: disc;
-      padding-left: 20px;
+    .example-list {
+      list-style-type: none;
+      padding-left: 0;
     }
 
-    ul.definitions li {
-      margin-bottom: 6px;
-      line-height: 1.4;
+    .example-item {
+      background-color: #f1f5f9;
+      border-left: 3px solid var(--primary-color);
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.95rem;
+    }
+
+    .example-src {
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .example-target {
+      color: var(--text-muted);
+      font-style: italic;
     }
   </style>
 </head>
@@ -152,7 +177,7 @@
       <input 
         type="text" 
         id="searchInput" 
-        placeholder="Enter a word to lookup..." 
+        placeholder="Search English or Portuguese..." 
         required 
         autocomplete="off"
         autocorrect="off"
@@ -162,11 +187,10 @@
     </form>
 
     <main class="results-card" id="resultsContainer">
-      <p class="status-message">Enter a word above and click Search.</p>
+      <p class="status-message">Enter an English or Portuguese word to translate.</p>
     </main>
   </div>
 
-  <!-- Client JavaScript for Free Dictionary API Fetching -->
   <script>
     const searchForm = document.getElementById('searchForm');
     const searchInput = document.getElementById('searchInput');
@@ -178,54 +202,68 @@
 
       if (!query) return;
 
-      resultsContainer.innerHTML = `<p class="status-message">Searching for "${query}"...</p>`;
+      resultsContainer.innerHTML = `<p class="status-message">Searching Linguee for "${query}"...</p>`;
 
       try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`);
+        // Fetch from Linguee API endpoint with EN <-> PT pair
+        const response = await fetch(`https://linguee-api.herokuapp.com/api?q=${encodeURIComponent(query)}&source=auto&target=pt`);
 
         if (!response.ok) {
-          if (response.status === 404) {
-            resultsContainer.innerHTML = `<p class="status-message">No definitions found for "<strong>${query}</strong>".</p>`;
-          } else {
-            resultsContainer.innerHTML = `<p class="status-message">Error retrieving definition (Status ${response.status}). Please try again.</p>`;
-          }
+          resultsContainer.innerHTML = `<p class="status-message">Nenhum resultado encontrado para "<strong>${query}</strong>".</p>`;
           return;
         }
 
         const data = await response.json();
-        renderResults(data[0]);
+
+        if (!data.exact_matches || data.exact_matches.length === 0) {
+          resultsContainer.innerHTML = `<p class="status-message">Nenhum resultado encontrado para "<strong>${query}</strong>".</p>`;
+          return;
+        }
+
+        renderResults(query, data.exact_matches);
 
       } catch (error) {
         console.error('Fetch error:', error);
-        resultsContainer.innerHTML = `<p class="status-message">Unable to connect to dictionary server. Check your connection or console logs.</p>`;
+        resultsContainer.innerHTML = `<p class="status-message">Error connecting to Linguee service. Check your connection or console logs.</p>`;
       }
     });
 
-    function renderResults(entry) {
-      const { word, phonetic, phonetics, meanings } = entry;
-      
-      const phoneticText = phonetic || (phonetics && phonetics.find(p => p.text)?.text) || '';
+    function renderResults(query, matches) {
+      let html = `<div class="word-header"><span class="word-title">${query}</span></div>`;
 
-      let html = `
-        <h2 class="word-title">${word}</h2>
-        ${phoneticText ? `<p class="phonetic">${phoneticText}</p>` : ''}
-      `;
+      matches.forEach(match => {
+        const wordText = match.text || query;
+        const pos = match.pos ? `<span class="pos-tag">(${match.pos})</span>` : '';
 
-      meanings.forEach(meaning => {
-        html += `
-          <div class="definition-group">
-            <div class="part-of-speech">${meaning.partOfSpeech}</div>
-            <ul class="definitions">
-        `;
+        html += `<div style="margin-bottom: 20px;">`;
+        if (match.text && match.text.toLowerCase() !== query.toLowerCase()) {
+          html += `<div style="font-weight:600; margin-bottom: 8px;">${wordText} ${pos}</div>`;
+        }
 
-        meaning.definitions.slice(0, 3).forEach(def => {
-          html += `<li>${def.definition}</li>`;
-        });
+        if (match.translations && match.translations.length > 0) {
+          match.translations.forEach(trans => {
+            html += `
+              <div class="translation-group">
+                <div class="translation-title">${trans.text} ${trans.pos ? `<span class="pos-tag">(${trans.pos})</span>` : ''}</div>
+            `;
 
-        html += `
-            </ul>
-          </div>
-        `;
+            if (trans.examples && trans.examples.length > 0) {
+              html += `<ul class="example-list">`;
+              trans.examples.slice(0, 2).forEach(ex => {
+                html += `
+                  <li class="example-item">
+                    <div class="example-src">${ex.src}</div>
+                    <div class="example-target">${ex.dst}</div>
+                  </li>
+                `;
+              });
+              html += `</ul>`;
+            }
+
+            html += `</div>`;
+          });
+        }
+        html += `</div>`;
       });
 
       resultsContainer.innerHTML = html;
