@@ -21,23 +21,34 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
-    // Injected script to intercept ALL tap/click events in Safari safely via postMessage
-    const safariScript = `
+    // Script that intercepts EVERY click and forces it back through our dark proxy
+    const proxyInterceptorScript = `
       <script>
         document.addEventListener('click', function(e) {
           const link = e.target.closest('a');
           if (link) {
             const href = link.getAttribute('href');
-            if (href && href.includes('query=')) {
+            if (href) {
               e.preventDefault();
               e.stopPropagation();
               
-              // Extract query parameter from Linguee link
+              let term = '';
+              // Check if href contains a query parameter
               const match = href.match(/query=([^&]+)/);
               if (match && match[1]) {
-                const term = decodeURIComponent(match[1]);
-                // Safely post message to parent container (Safari-compatible)
+                term = decodeURIComponent(match[1]);
+              } else if (href.includes('/english-portuguese/search')) {
+                // Handle path-based search links
+                const parts = href.split('query=');
+                if (parts[1]) term = decodeURIComponent(parts[1]);
+              }
+
+              if (term) {
+                // Post message to parent to load the term via /api/translate
                 window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
+              } else if (href.startsWith('http')) {
+                // For external links, open in a new browser tab
+                window.open(href, '_blank');
               }
             }
           }
@@ -45,7 +56,7 @@ export default async function handler(req, res) {
       </script>
     `;
 
-    // Inject Dark Mode Custom Styles directly into Linguee's HTML
+    // Inject Dark Mode Custom Styles
     const darkStyles = `
       <style>
         body, html {
@@ -55,12 +66,12 @@ export default async function handler(req, res) {
           padding: 10px !important;
           -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
-        /* Hide unnecessary headers, sidebars, and ads */
-        #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner {
+        /* Hide unnecessary headers, sidebars, footers, and banners */
+        #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner, .header_container {
           display: none !important;
         }
-        /* Main Container Styling */
-        #content_container, .exact, .inexact, .lemma {
+        /* Main Content Boxes */
+        #content_container, .exact, .inexact, .lemma, .dictionary {
           background-color: #1e1e1e !important;
           color: #e0e0e0 !important;
           border: 1px solid #333333 !important;
@@ -68,7 +79,7 @@ export default async function handler(req, res) {
           padding: 12px !important;
           margin-bottom: 15px !important;
         }
-        /* Text Highlighting & Links */
+        /* Text Highlighting & Hyperlinks */
         a, a * {
           color: #4da6ff !important;
           text-decoration: none !important;
@@ -81,7 +92,7 @@ export default async function handler(req, res) {
           color: #a0a0a0 !important;
           font-style: italic !important;
         }
-        /* Context Example Blocks */
+        /* Context Example Rows */
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
@@ -97,7 +108,7 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    html = html.replace('</head>', `${darkStyles}${safariScript}</head>`);
+    html = html.replace('</head>', `${darkStyles}${proxyInterceptorScript}</head>`);
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(html);
