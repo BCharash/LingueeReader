@@ -22,32 +22,32 @@
       background-color: var(--bg-color);
       color: var(--text-color);
       margin: 0;
-      padding: 20px;
+      padding: 15px;
       display: flex;
       justify-content: center;
     }
 
     .container {
       width: 100%;
-      max-width: 650px;
+      max-width: 900px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 15px;
+      height: 95vh;
     }
 
     header {
       text-align: center;
-      margin-bottom: 10px;
     }
 
     h1 {
-      margin: 0 0 8px 0;
-      font-size: 1.8rem;
+      margin: 0 0 4px 0;
+      font-size: 1.6rem;
     }
 
     .subtitle {
       color: var(--text-secondary);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       margin: 0;
     }
 
@@ -88,47 +88,20 @@
       opacity: 0.9;
     }
 
-    .results-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .results-card {
+    .frame-container {
+      flex: 1;
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 20px;
+      overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
 
-    .card-header {
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-    }
-
-    .translation-text {
-      font-size: 1.25rem;
-      font-weight: 500;
-      color: var(--accent-color);
-      margin: 0;
-    }
-
-    .status-message {
-      color: var(--text-secondary);
-      font-style: italic;
-      text-align: center;
-      margin: 20px 0;
-    }
-
-    .error-message {
-      color: #ff6b6b;
-      text-align: center;
-      margin: 20px 0;
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background-color: var(--bg-color);
     }
   </style>
 </head>
@@ -137,7 +110,7 @@
   <div class="container">
     <header>
       <h1>Linguee Reader</h1>
-      <p class="subtitle">Enter a phrase and press Enter or Search</p>
+      <p class="subtitle">Dark-mode reader with active word links</p>
     </header>
 
     <form class="search-form" id="search-form">
@@ -151,74 +124,31 @@
       <button type="submit">Search</button>
     </form>
 
-    <div class="results-grid" id="results-grid">
-      <div class="results-card">
-        <p class="status-message">Enter a search term above to begin.</p>
-      </div>
+    <div class="frame-container">
+      <iframe id="linguee-frame" src="about:blank"></iframe>
     </div>
   </div>
 
   <script>
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
-    const resultsContainer = document.getElementById('results-grid');
+    const iframe = document.getElementById('linguee-frame');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const query = input.value.trim();
-
+    function performSearch(query) {
       if (!query) return;
+      input.value = decodeURIComponent(query);
+      iframe.src = `/api/translate?q=${encodeURIComponent(query)}`;
+    }
 
-      resultsContainer.innerHTML = `
-        <div class="results-card">
-          <p class="status-message">Searching both languages...</p>
-        </div>
-      `;
-
-      try {
-        const response = await fetch(`/api/translate?q=${encodeURIComponent(query)}`);
-
-        if (!response.ok) {
-          throw new Error(`Server returned HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        renderResults(data);
-      } catch (err) {
-        console.error('Fetch error:', err);
-        resultsContainer.innerHTML = `
-          <div class="results-card">
-            <div class="error-message">
-              <p><strong>Unable to fetch translations.</strong></p>
-              <p style="font-size: 0.85rem; opacity: 0.8;">${err.message}</p>
-            </div>
-          </div>
-        `;
-      }
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      performSearch(input.value.trim());
     });
 
-    function renderResults(data) {
-      if (!data) {
-        resultsContainer.innerHTML = `
-          <div class="results-card">
-            <p class="status-message">No results found for that query.</p>
-          </div>
-        `;
-        return;
-      }
-
-      resultsContainer.innerHTML = `
-        <div class="results-card">
-          <div class="card-header">English ➔ Portuguese</div>
-          <p class="translation-text">${data.enToPt}</p>
-        </div>
-        <div class="results-card">
-          <div class="card-header">Portuguese ➔ English</div>
-          <p class="translation-text">${data.ptToEn}</p>
-        </div>
-      `;
-    }
+    // Called automatically when clicking any hyperlinked word inside the dark reader frame
+    window.searchFromLink = function(query) {
+      performSearch(query);
+    };
   </script>
 </body>
 </html>
-<!-- This is a single-line or multi-line comment in HTML -->
