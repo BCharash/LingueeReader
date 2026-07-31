@@ -33,7 +33,7 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
-      height: 95vh;
+      height: 92vh;
     }
 
     header {
@@ -95,6 +95,7 @@
       border-radius: 10px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      -webkit-overflow-scrolling: touch;
     }
 
     iframe {
@@ -145,10 +146,12 @@
       performSearch(input.value.trim());
     });
 
-    // Called automatically when clicking any hyperlinked word inside the dark reader frame
-    window.searchFromLink = function(query) {
-      performSearch(query);
-    };
+    // Mobile Safari Listener: Listens for tap messages sent from inside the iframe
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'LINGUEE_SEARCH') {
+        performSearch(event.data.query);
+      }
+    });
   </script>
 </body>
 </html>
