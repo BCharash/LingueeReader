@@ -21,6 +21,10 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
+    // Remove tracking, analytics, and external scripts that trigger CORS console errors
+    html = html.replace(/<script[^>]*deepl\.com[^>]*><\/script>/gi, '');
+    html = html.replace(/<script[^>]*linguee4-(early|all-late)[^>]*><\/script>/gi, '');
+
     // Script that intercepts EVERY click and forces it back through our dark proxy
     const proxyInterceptorScript = `
       <script>
