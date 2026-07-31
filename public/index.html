@@ -57,7 +57,7 @@
       margin: 2px 0 0 0;
     }
 
-    /* Font Size Control Controls */
+    /* Font Adjustment Controls */
     .font-controls {
       display: flex;
       align-items: center;
@@ -186,12 +186,17 @@
     const btnIncrease = document.getElementById('font-increase');
     const displaySize = document.getElementById('font-size-display');
 
-    // Font scaling state (Percentage base)
-    let currentFontPercent = 115;
+    // Retrieve saved font size from localStorage or fallback to default (115%)
+    const STORAGE_KEY = 'linguee_reader_font_size';
+    let currentFontPercent = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 115;
 
     function applyFontSize() {
       displaySize.textContent = `${currentFontPercent}%`;
-      // Send scale command to iframe
+      
+      // Save to localStorage whenever updated
+      localStorage.setItem(STORAGE_KEY, currentFontPercent);
+
+      // Post scale message directly to the iframe
       if (iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: 'SET_FONT_SIZE', percent: currentFontPercent }, '*');
       }
@@ -222,7 +227,7 @@
       performSearch(input.value.trim());
     });
 
-    // When iframe finishes loading, re-apply the selected font size
+    // When iframe finishes loading, apply saved font size
     iframe.addEventListener('load', () => {
       applyFontSize();
     });
@@ -233,6 +238,9 @@
         performSearch(event.data.query);
       }
     });
+
+    // Set initial display percentage on launch
+    displaySize.textContent = `${currentFontPercent}%`;
   </script>
 </body>
 </html>
