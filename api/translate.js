@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   try {
     const response = await fetch(lingueeUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
       }
     });
 
@@ -21,9 +21,29 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
-    // Rewrite internal Linguee search links so clicking words re-runs searches inside your app
-    html = html.replace(/href="\/english-portuguese\/search\?source=auto&amp;query=([^"]+)"/g, 'href="#" onclick="window.parent.searchFromLink(\'$1\'); return false;"');
-    html = html.replace(/href="\/english-portuguese\/search\?source=spanish&amp;query=([^"]+)"/g, 'href="#" onclick="window.parent.searchFromLink(\'$1\'); return false;"');
+    // Injected script to intercept ALL tap/click events in Safari safely via postMessage
+    const safariScript = `
+      <script>
+        document.addEventListener('click', function(e) {
+          const link = e.target.closest('a');
+          if (link) {
+            const href = link.getAttribute('href');
+            if (href && href.includes('query=')) {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // Extract query parameter from Linguee link
+              const match = href.match(/query=([^&]+)/);
+              if (match && match[1]) {
+                const term = decodeURIComponent(match[1]);
+                // Safely post message to parent container (Safari-compatible)
+                window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
+              }
+            }
+          }
+        }, true);
+      </script>
+    `;
 
     // Inject Dark Mode Custom Styles directly into Linguee's HTML
     const darkStyles = `
@@ -33,6 +53,7 @@ export default async function handler(req, res) {
           color: #e0e0e0 !important;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
           padding: 10px !important;
+          -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
         /* Hide unnecessary headers, sidebars, and ads */
         #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner {
@@ -51,8 +72,9 @@ export default async function handler(req, res) {
         a, a * {
           color: #4da6ff !important;
           text-decoration: none !important;
+          cursor: pointer !important;
         }
-        a:hover {
+        a:hover, a:active {
           text-decoration: underline !important;
         }
         .tag_lemma, .tag_type, .wordtype {
@@ -75,7 +97,7 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    html = html.replace('</head>', `${darkStyles}</head>`);
+    html = html.replace('</head>', `${darkStyles}${safariScript}</head>`);
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(html);
