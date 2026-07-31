@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const decoder = new TextDecoder('iso-8859-1');
     let html = decoder.decode(buffer);
 
-    // Universal link interceptor
+    // Universal link interceptor & font change message handler
     const interceptorScript = `
       <script>
         window.onerror = function() { return true; };
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
       </script>
     `;
 
-    // Dark Mode Stylesheet with Percentage-Based Typography Units (rem/%)
+    // Dark Mode Stylesheet with Target Classes Forced to Dynamic REM Units
     const darkStyles = `
       <style>
         html {
@@ -104,10 +104,22 @@ export default async function handler(req, res) {
           margin-bottom: 1rem !important;
         }
 
-        /* Dictionary Term Headings */
-        .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma {
-          font-size: 1.3rem !important;
+        /* Lookup Headings (e.g., "happy") */
+        .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma, .headline_translation {
+          font-size: 1.5rem !important;
           font-weight: 700 !important;
+        }
+
+        /* TARGETED FIX: Translated Target Words (e.g., "feliz", "satisfeito") */
+        .translation, 
+        .translation_lines, 
+        .translation .dictLink, 
+        .translation_desc .dictLink,
+        a.dictLink,
+        .dictLink {
+          font-size: 1.35rem !important;
+          font-weight: 600 !important;
+          line-height: 1.4 !important;
         }
 
         /* High-Contrast Links & Words */
@@ -120,14 +132,15 @@ export default async function handler(req, res) {
           text-decoration: underline !important;
         }
 
-        /* Word Type Tags (e.g., noun, verb) */
-        .tag_lemma, .tag_type, .wordtype {
+        /* Word Type & Grammar Tags (e.g., adj, noun, verb) */
+        .tag_lemma, .tag_type, .wordtype, .tag_trans {
           color: #a0a0a0 !important;
           font-style: italic !important;
-          font-size: 0.9rem !important;
+          font-size: 0.95rem !important;
+          font-weight: normal !important;
         }
 
-        /* Sentence Example Pairs */
+        /* Usage Examples & Context Blocks */
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
