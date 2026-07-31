@@ -20,9 +20,14 @@ export default async function handler(req, res) {
       return res.status(response.status).send('<p style="color:white;text-align:center;">Unable to load Linguee data.</p>');
     }
 
-    let html = await response.text();
+    // 1. Grab raw binary buffer from Linguee
+    const buffer = await response.arrayBuffer();
 
-    // Script that intercepts clicks & dynamically handles live font scaling commands
+    // 2. Decode using ISO-8859-1 (Latin-1) so Portuguese accents (ã, ç, é) map correctly
+    const decoder = new TextDecoder('iso-8859-1');
+    let html = decoder.decode(buffer);
+
+    // Universal link interceptor
     const interceptorScript = `
       <script>
         window.onerror = function() { return true; };
@@ -142,9 +147,11 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    html = html.replace('<head>', `<head>${interceptorScript}${darkStyles}`);
+    // Inject meta charset UTF-8 alongside scripts and styles
+    html = html.replace('<head>', `<head><meta charset="UTF-8">${interceptorScript}${darkStyles}`);
 
-    res.setHeader('Content-Type', 'text/html');
+    // Set response header explicitly to UTF-8
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(200).send(html);
   } catch (error) {
     return res.status(500).send('<p style="color:white;text-align:center;">Server error fetching Linguee content.</p>');
