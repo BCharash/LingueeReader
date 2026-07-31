@@ -88,13 +88,34 @@
       opacity: 0.9;
     }
 
+    .results-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
     .results-card {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 20px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      min-height: 100px;
+    }
+
+    .card-header {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .translation-text {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--accent-color);
+      margin: 0;
     }
 
     .status-message {
@@ -108,14 +129,6 @@
       color: #ff6b6b;
       text-align: center;
       margin: 20px 0;
-    }
-
-    .translation-result {
-      font-size: 1.25rem;
-      font-weight: 500;
-      color: var(--accent-color);
-      text-align: center;
-      margin: 10px 0;
     }
   </style>
 </head>
@@ -138,15 +151,17 @@
       <button type="submit">Search</button>
     </form>
 
-    <div class="results-card" id="results-card">
-      <p class="status-message">Enter a search term above to begin.</p>
+    <div class="results-grid" id="results-grid">
+      <div class="results-card">
+        <p class="status-message">Enter a search term above to begin.</p>
+      </div>
     </div>
   </div>
 
   <script>
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
-    const resultsContainer = document.getElementById('results-card');
+    const resultsContainer = document.getElementById('results-grid');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -154,11 +169,14 @@
 
       if (!query) return;
 
-      resultsContainer.innerHTML = '<p class="status-message">Searching...</p>';
+      resultsContainer.innerHTML = `
+        <div class="results-card">
+          <p class="status-message">Searching both languages...</p>
+        </div>
+      `;
 
       try {
-        // Points directly to /api/translate
-        const response = await fetch(`/api/translate?q=${encodeURIComponent(query)}&source=auto&target=pt`);
+        const response = await fetch(`/api/translate?q=${encodeURIComponent(query)}`);
 
         if (!response.ok) {
           throw new Error(`Server returned HTTP ${response.status}`);
@@ -169,23 +187,34 @@
       } catch (err) {
         console.error('Fetch error:', err);
         resultsContainer.innerHTML = `
-          <div class="error-message">
-            <p><strong>Unable to fetch translation.</strong></p>
-            <p style="font-size: 0.85rem; opacity: 0.8;">${err.message}</p>
+          <div class="results-card">
+            <div class="error-message">
+              <p><strong>Unable to fetch translations.</strong></p>
+              <p style="font-size: 0.85rem; opacity: 0.8;">${err.message}</p>
+            </div>
           </div>
         `;
       }
     });
 
     function renderResults(data) {
-      if (!data || !data.translation) {
-        resultsContainer.innerHTML = '<p class="status-message">No results found for that query.</p>';
+      if (!data) {
+        resultsContainer.innerHTML = `
+          <div class="results-card">
+            <p class="status-message">No results found for that query.</p>
+          </div>
+        `;
         return;
       }
 
       resultsContainer.innerHTML = `
-        <div class="translation-result">
-          <p>${data.translation}</p>
+        <div class="results-card">
+          <div class="card-header">English ➔ Portuguese</div>
+          <p class="translation-text">${data.enToPt}</p>
+        </div>
+        <div class="results-card">
+          <div class="card-header">Portuguese ➔ English</div>
+          <p class="translation-text">${data.ptToEn}</p>
         </div>
       `;
     }
