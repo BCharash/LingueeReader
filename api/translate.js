@@ -21,37 +21,34 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
-    // Remove tracking, analytics, and external scripts that trigger CORS console errors
-    html = html.replace(/<script[^>]*deepl\.com[^>]*><\/script>/gi, '');
-    html = html.replace(/<script[^>]*linguee4-(early|all-late)[^>]*><\/script>/gi, '');
-
-    // Script that intercepts EVERY click and forces it back through our dark proxy
-    const proxyInterceptorScript = `
+    // Injected script to suppress non-critical Linguee telemetry errors & reliably catch taps/clicks
+    const interceptorScript = `
       <script>
+        // Suppress benign third-party script errors from cluttering the console/blocking execution
+        window.onerror = function() { return true; };
+
+        // Catch clicks on any anchor tag at the document root level
         document.addEventListener('click', function(e) {
-          const link = e.target.closest('a');
+          var link = e.target.closest('a');
           if (link) {
-            const href = link.getAttribute('href');
+            var href = link.getAttribute('href');
             if (href) {
-              e.preventDefault();
-              e.stopPropagation();
+              var term = '';
+              var match = href.match(/query=([^&]+)/);
               
-              let term = '';
-              // Check if href contains a query parameter
-              const match = href.match(/query=([^&]+)/);
               if (match && match[1]) {
                 term = decodeURIComponent(match[1]);
               } else if (href.includes('/english-portuguese/search')) {
-                // Handle path-based search links
-                const parts = href.split('query=');
+                var parts = href.split('query=');
                 if (parts[1]) term = decodeURIComponent(parts[1]);
               }
 
               if (term) {
-                // Post message to parent to load the term via /api/translate
+                e.preventDefault();
+                e.stopPropagation();
                 window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
               } else if (href.startsWith('http')) {
-                // For external links, open in a new browser tab
+                e.preventDefault();
                 window.open(href, '_blank');
               }
             }
@@ -60,7 +57,7 @@ export default async function handler(req, res) {
       </script>
     `;
 
-    // Inject Dark Mode Custom Styles
+    // Dark Mode Stylesheet
     const darkStyles = `
       <style>
         body, html {
@@ -70,11 +67,11 @@ export default async function handler(req, res) {
           padding: 10px !important;
           -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
-        /* Hide unnecessary headers, sidebars, footers, and banners */
-        #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner, .header_container {
+        /* Hide clutter: headers, footers, ads, and banners */
+        #header, #footer, #banner_left, #banner_right, .dl_header, .linguee_header, #app_banner, .header_container, .ad_container {
           display: none !important;
         }
-        /* Main Content Boxes */
+        /* Card Containers */
         #content_container, .exact, .inexact, .lemma, .dictionary {
           background-color: #1e1e1e !important;
           color: #e0e0e0 !important;
@@ -83,7 +80,7 @@ export default async function handler(req, res) {
           padding: 12px !important;
           margin-bottom: 15px !important;
         }
-        /* Text Highlighting & Hyperlinks */
+        /* High-Contrast Links */
         a, a * {
           color: #4da6ff !important;
           text-decoration: none !important;
@@ -96,7 +93,7 @@ export default async function handler(req, res) {
           color: #a0a0a0 !important;
           font-style: italic !important;
         }
-        /* Context Example Rows */
+        /* Sentence Example Pairs */
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
@@ -112,7 +109,8 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    html = html.replace('</head>', `${darkStyles}${proxyInterceptorScript}</head>`);
+    // Inject interceptor and styles right at the top of <head> before external scripts execute
+    html = html.replace('<head>', `<head>${interceptorScript}${darkStyles}`);
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(html);
