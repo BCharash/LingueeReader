@@ -21,24 +21,31 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
-    // Injected script to suppress non-critical Linguee telemetry errors & reliably catch taps/clicks
+    // Universal link interceptor: captures query links AND .html translation paths
     const interceptorScript = `
       <script>
-        // Suppress benign third-party script errors from cluttering the console/blocking execution
         window.onerror = function() { return true; };
 
-        // Catch clicks on any anchor tag at the document root level
         document.addEventListener('click', function(e) {
           var link = e.target.closest('a');
           if (link) {
             var href = link.getAttribute('href');
             if (href) {
               var term = '';
-              var match = href.match(/query=([^&]+)/);
-              
-              if (match && match[1]) {
-                term = decodeURIComponent(match[1]);
-              } else if (href.includes('/english-portuguese/search')) {
+
+              // Pattern 1: URL with query parameter (?query=word)
+              var queryMatch = href.match(/query=([^&]+)/);
+              if (queryMatch && queryMatch[1]) {
+                term = decodeURIComponent(queryMatch[1]);
+              } 
+              // Pattern 2: Translation page links (/translation/satisfeito.html)
+              else if (href.includes('/translation/') || href.endsWith('.html')) {
+                var pathParts = href.split('/');
+                var filename = pathParts[pathParts.length - 1]; // e.g. "satisfeito.html"
+                term = filename.replace('.html', '').replace(/\\+/g, ' ');
+              }
+              // Pattern 3: General search paths (/english-portuguese/search?...)
+              else if (href.includes('/search')) {
                 var parts = href.split('query=');
                 if (parts[1]) term = decodeURIComponent(parts[1]);
               }
@@ -46,6 +53,7 @@ export default async function handler(req, res) {
               if (term) {
                 e.preventDefault();
                 e.stopPropagation();
+                // Send extracted term to parent to reload dark mode API endpoint
                 window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
               } else if (href.startsWith('http')) {
                 e.preventDefault();
@@ -109,7 +117,6 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    // Inject interceptor and styles right at the top of <head> before external scripts execute
     html = html.replace('<head>', `<head>${interceptorScript}${darkStyles}`);
 
     res.setHeader('Content-Type', 'text/html');
