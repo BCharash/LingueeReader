@@ -1,10 +1,11 @@
 export default async function handler(req, res) {
-  const { q } = req.query;
+  const { q, font } = req.query;
 
   if (!q) {
     return res.status(400).send('<p style="color:white;text-align:center;">Please enter a search term.</p>');
   }
 
+  const initialFont = font ? parseInt(font, 10) : 115;
   const query = encodeURIComponent(q.trim());
   const lingueeUrl = `https://www.linguee.com/english-portuguese/search?source=auto&query=${query}`;
 
@@ -21,11 +22,19 @@ export default async function handler(req, res) {
 
     let html = await response.text();
 
-    // Universal link interceptor: captures query links AND .html translation paths
+    // Script that intercepts clicks & dynamically handles live font scaling commands
     const interceptorScript = `
       <script>
         window.onerror = function() { return true; };
 
+        // Dynamic Font Scaler Listener
+        window.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'SET_FONT_SIZE') {
+            document.documentElement.style.fontSize = event.data.percent + '%';
+          }
+        });
+
+        // Universal link interceptor
         document.addEventListener('click', function(e) {
           var link = e.target.closest('a');
           if (link) {
@@ -33,19 +42,14 @@ export default async function handler(req, res) {
             if (href) {
               var term = '';
 
-              // Pattern 1: URL with query parameter (?query=word)
               var queryMatch = href.match(/query=([^&]+)/);
               if (queryMatch && queryMatch[1]) {
                 term = decodeURIComponent(queryMatch[1]);
-              } 
-              // Pattern 2: Translation page links (/translation/satisfeito.html)
-              else if (href.includes('/translation/') || href.endsWith('.html')) {
+              } else if (href.includes('/translation/') || href.endsWith('.html')) {
                 var pathParts = href.split('/');
                 var filename = pathParts[pathParts.length - 1];
                 term = filename.replace('.html', '').replace(/\\+/g, ' ');
-              }
-              // Pattern 3: General search paths (/english-portuguese/search?...)
-              else if (href.includes('/search')) {
+              } else if (href.includes('/search')) {
                 var parts = href.split('query=');
                 if (parts[1]) term = decodeURIComponent(parts[1]);
               }
@@ -64,15 +68,18 @@ export default async function handler(req, res) {
       </script>
     `;
 
-    // Dark Mode Stylesheet + Larger Typography Rules
+    // Dark Mode Stylesheet with Percentage-Based Typography Units (rem/%)
     const darkStyles = `
       <style>
-        body, html {
+        html {
+          font-size: ${initialFont}% !important;
+        }
+
+        body {
           background-color: #121212 !important;
           color: #e0e0e0 !important;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
           padding: 10px !important;
-          font-size: 1.15rem !important; /* Increased global base font size */
           line-height: 1.6 !important;
           -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
@@ -88,13 +95,13 @@ export default async function handler(req, res) {
           color: #e0e0e0 !important;
           border: 1px solid #333333 !important;
           border-radius: 8px !important;
-          padding: 14px !important;
-          margin-bottom: 15px !important;
+          padding: 1rem !important;
+          margin-bottom: 1rem !important;
         }
 
         /* Dictionary Term Headings */
         .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma {
-          font-size: 1.4rem !important;
+          font-size: 1.3rem !important;
           font-weight: 700 !important;
         }
 
@@ -103,7 +110,6 @@ export default async function handler(req, res) {
           color: #4da6ff !important;
           text-decoration: none !important;
           cursor: pointer !important;
-          font-size: 1.15rem !important;
         }
         a:hover, a:active {
           text-decoration: underline !important;
@@ -113,24 +119,24 @@ export default async function handler(req, res) {
         .tag_lemma, .tag_type, .wordtype {
           color: #a0a0a0 !important;
           font-style: italic !important;
-          font-size: 1rem !important;
+          font-size: 0.9rem !important;
         }
 
         /* Sentence Example Pairs */
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
-          font-size: 1.1rem !important;
+          font-size: 1rem !important;
         }
         .example .tag_s, .example .tag_t {
           color: #ffffff !important;
-          font-size: 1.1rem !important;
+          font-size: 1rem !important;
         }
 
         td {
           border-color: #333333 !important;
-          padding: 10px !important;
-          font-size: 1.1rem !important;
+          padding: 0.6rem !important;
+          font-size: 1rem !important;
         }
       </style>
       <base href="https://www.linguee.com/">
