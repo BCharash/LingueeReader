@@ -91,6 +91,11 @@
     .suggestion-wordtype { color: var(--text-secondary); font-size: 0.7em; }
     .suggestion-translations { color: var(--text-secondary); font-size: 0.78em; line-height: 1.35; }
     .suggestion-lang { margin-left: auto; flex: none; font-size: 12px; color: var(--text-secondary); }
+    .search-input-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+    .search-input-wrap input { width: 100%; padding-right: 48px; }
+    .clear-input { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: var(--text-secondary); font-size: 25px; line-height: 1; width: 36px; height: 36px; cursor: pointer; border-radius: 6px; }
+    .clear-input:hover { color: var(--text-color); background: #383838; }
+    .clear-input[hidden] { display: none; }
     .search-form {
       display: flex;
       gap: 10px;
@@ -170,6 +175,7 @@
 
     <div class="search-area">
     <form class="search-form" id="search-form">
+      <div class="search-input-wrap">
       <input 
         type="text" 
         id="search-input" 
@@ -177,6 +183,8 @@
         autocomplete="off" 
         autofocus
       >
+      <button type="button" class="clear-input" id="clear-input" aria-label="Clear search" title="Clear search" hidden>×</button>
+      </div>
       <button type="submit" class="search-btn">Search</button>
     </form>
     <div id="suggestions" class="suggestions" role="listbox" aria-label="Word suggestions" hidden></div>
@@ -190,6 +198,9 @@
   <script>
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
+    const clearInput = document.getElementById('clear-input');
+    function updateClearButton() { clearInput.hidden = input.value.length === 0; }
+    clearInput.addEventListener('click', () => { input.value = ''; cancelSuggestions(); updateClearButton(); input.focus(); });
     const iframe = document.getElementById('linguee-frame');
     const fontSlider = document.getElementById('font-slider');
     const displaySize = document.getElementById('font-size-display');
@@ -305,7 +316,7 @@
     }
     input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); });
     input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); });
-    input.addEventListener('input', () => { if (!composing) scheduleSuggestions(); });
+    input.addEventListener('input', () => { updateClearButton(); if (!composing) scheduleSuggestions(); });
     input.addEventListener('keydown', event => {
       if (event.key === 'Escape') { cancelSuggestions(); return; }
       if (suggestionsBox.hidden || !suggestionItems.length) return;
@@ -329,6 +340,7 @@
       if (!query) return;
       cancelSuggestions();
       input.value = query;
+      updateClearButton();
       iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
     }
 
@@ -353,6 +365,7 @@
 
     // Apply the saved size to the search field before any search.
     applyFontSize();
+    updateClearButton();
   </script>
 </body>
 </html>
