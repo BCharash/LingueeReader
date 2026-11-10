@@ -216,6 +216,8 @@
     let suggestionItems = [];
     let activeSuggestion = -1;
     let composing = false;
+    let liveSearchTimer = null;
+    let lastSearchQuery = null;
 
     function hideSuggestions() {
       suggestionsBox.hidden = true;
@@ -264,6 +266,23 @@
       suggestionsBox.hidden = false;
       input.setAttribute('aria-expanded', 'true');
     }
+    // Update the full dictionary after typing pauses, independently of suggestions.
+    function scheduleLiveSearch() {
+      clearTimeout(liveSearchTimer);
+      const query = input.value.trim();
+      if (query.length < 2 || query.length > 60) return;
+      liveSearchTimer = setTimeout(() => {
+        if (input.value.trim() !== query || composing) return;
+        loadDictionary(query);
+      }, 550);
+    }
+
+    function loadDictionary(query) {
+      if (!query || query === lastSearchQuery) return;
+      lastSearchQuery = query;
+      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
+    }
+
     function scheduleSuggestions() {
       cancelSuggestions();
       const query = input.value.trim();
@@ -283,9 +302,9 @@
         }
       }, 350);
     }
-    input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); });
-    input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); });
-    input.addEventListener('input', () => { if (!composing) scheduleSuggestions(); });
+    input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); clearTimeout(liveSearchTimer); });
+    input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); scheduleLiveSearch(); });
+    input.addEventListener('input', () => { if (!composing) { scheduleSuggestions(); scheduleLiveSearch(); } });
     input.addEventListener('keydown', event => {
       if (event.key === 'Escape') { cancelSuggestions(); return; }
       if (suggestionsBox.hidden || !suggestionItems.length) return;
@@ -307,15 +326,16 @@
 
     function performSearch(query) {
       if (!query) return;
+      clearTimeout(liveSearchTimer);
       cancelSuggestions();
-      input.value = decodeURIComponent(query);
-      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
+      input.value = query;
+      loadDictionary(query);
     }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (activeSuggestion >= 0 && !suggestionsBox.hidden) selectSuggestion(activeSuggestion);
-      else performSearch(input.value.trim());
+      else { lastSearchQuery = null; performSearch(input.value.trim()); }
     });
 
     // When iframe finishes loading, apply saved font size
