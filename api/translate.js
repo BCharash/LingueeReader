@@ -118,7 +118,7 @@ export default async function handler(req, res) {
 
         /* Lookup Headings (e.g., "happy") */
         .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma, .headline_translation {
-          font-size: 1.12em !important;
+          font-size: calc(var(--reader-font-size) * 1.12) !important;
           font-weight: 500 !important;
         }
 
@@ -129,9 +129,36 @@ export default async function handler(req, res) {
         .translation_desc .dictLink,
         a.dictLink,
         .dictLink {
-          font-size: 1em !important;
+          font-size: var(--reader-font-size) !important;
           font-weight: 400 !important;
           line-height: 1.55 !important;
+        }
+
+        /* Linguee supplies explicit pixel sizes on nested text elements.
+           Set the chosen size on the actual dictionary text, not just html/body.
+           Absolute px values avoid compounding through nested em rules. */
+        body :is(div, span, a, p, td, th, li, strong, b, em, small, label,
+                 h1, h2, h3, h4, blockquote, dt, dd) {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+          font-size: var(--reader-font-size) !important;
+          font-weight: 400 !important;
+          line-height: 1.55 !important;
+          overflow-wrap: anywhere !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+        /* Restore a modest hierarchy after the broad Linguee override. */
+        body :is(h1, h2, h3, .lemma .tag_lemma a, .headline_translation) {
+          font-size: calc(var(--reader-font-size) * 1.12) !important;
+          font-weight: 500 !important;
+        }
+        body :is(.tag_wordtype, .tag_type, .wordtype, .tag_lemma .tag_wordtype) {
+          font-size: calc(var(--reader-font-size) * 0.85) !important;
+          font-weight: 400 !important;
+        }
+        body :is(table, tbody, thead, tr) {
+          height: auto !important;
+          max-height: none !important;
         }
 
         /* High-Contrast Links & Words */
@@ -148,7 +175,7 @@ export default async function handler(req, res) {
         .tag_lemma, .tag_type, .wordtype, .tag_trans {
           color: #a0a0a0 !important;
           font-style: italic !important;
-          font-size: 0.85em !important;
+          font-size: calc(var(--reader-font-size) * 0.85) !important;
           font-weight: normal !important;
         }
 
@@ -156,11 +183,11 @@ export default async function handler(req, res) {
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
-          font-size: 1em !important;
+          font-size: var(--reader-font-size) !important;
         }
         .example .tag_s, .example .tag_t {
           color: #ffffff !important;
-          font-size: 1em !important;
+          font-size: var(--reader-font-size) !important;
         }
 
         /* Let enlarged dictionary content wrap instead of colliding with fixed boxes. */
@@ -184,7 +211,7 @@ export default async function handler(req, res) {
         td {
           border-color: #333333 !important;
           padding: 0.45em !important;
-          font-size: 1em !important;
+          font-size: var(--reader-font-size) !important;
         }
       </style>
       <base href="https://www.linguee.com/">
