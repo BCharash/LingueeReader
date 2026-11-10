@@ -81,6 +81,13 @@
       .font-slider { width: clamp(155px, 43vw, 255px); }
     }
 
+    .search-area { position: relative; }
+    .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; max-height: min(50vh, 390px); overflow-y: auto; box-shadow: 0 8px 22px #0009; }
+    .suggestions[hidden] { display: none; }
+    .suggestion { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 14px; background: none; border: 0; border-bottom: 1px solid var(--border-color); color: var(--text-color); font: 400 var(--reader-font-size)/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+    .suggestion:last-child { border-bottom: 0; }
+    .suggestion:hover, .suggestion[aria-selected="true"] { background: #303c48; }
+    .suggestion-lang { flex: none; font-size: 12px; color: var(--text-secondary); }
     .search-form {
       display: flex;
       gap: 10px;
@@ -158,6 +165,7 @@
       </div>
     </header>
 
+    <div class="search-area">
     <form class="search-form" id="search-form">
       <input 
         type="text" 
@@ -168,6 +176,8 @@
       >
       <button type="submit" class="search-btn">Search</button>
     </form>
+    <div id="suggestions" class="suggestions" role="listbox" aria-label="Word suggestions" hidden></div>
+    </div>
 
     <div class="frame-container">
       <iframe id="linguee-frame" src="about:blank"></iframe>
@@ -199,15 +209,113 @@
       applyFontSize();
     });
 
+    const suggestionsBox = document.getElementById('suggestions');
+    let suggestTimer = null;
+    let suggestController = null;
+    let suggestGeneration = 0;
+    let suggestionItems = [];
+    let activeSuggestion = -1;
+    let composing = false;
+
+    function hideSuggestions() {
+      suggestionsBox.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      activeSuggestion = -1;
+    }
+    function cancelSuggestions() {
+      clearTimeout(suggestTimer);
+      suggestGeneration++;
+      if (suggestController) suggestController.abort();
+      suggestController = null;
+      hideSuggestions();
+    }
+    function updateActiveSuggestion() {
+      [...suggestionsBox.children].forEach((button, index) => {
+        button.setAttribute('aria-selected', String(index === activeSuggestion));
+      });
+    }
+    function selectSuggestion(index) {
+      const item = suggestionItems[index];
+      if (!item) return;
+      cancelSuggestions();
+      performSearch(item.word);
+    }
+    function renderSuggestions(items) {
+      suggestionItems = items;
+      suggestionsBox.replaceChildren();
+      activeSuggestion = -1;
+      if (!items.length) { hideSuggestions(); return; }
+      items.forEach((item, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'suggestion';
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', 'false');
+        const word = document.createElement('span');
+        word.textContent = item.word;
+        const lang = document.createElement('span');
+        lang.className = 'suggestion-lang';
+        lang.textContent = item.lang || 'EN / PT';
+        button.append(word, lang);
+        button.addEventListener('pointerdown', event => event.preventDefault());
+        button.addEventListener('click', () => selectSuggestion(index));
+        suggestionsBox.appendChild(button);
+      });
+      suggestionsBox.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+    function scheduleSuggestions() {
+      cancelSuggestions();
+      const query = input.value.trim();
+      if (query.length < 2 || query.length > 60) return;
+      const generation = suggestGeneration;
+      suggestTimer = setTimeout(async () => {
+        const controller = new AbortController();
+        suggestController = controller;
+        try {
+          const response = await fetch('/api/suggest?q=' + encodeURIComponent(query), {signal: controller.signal});
+          if (!response.ok) throw new Error('Suggestion request failed');
+          const data = await response.json();
+          if (generation !== suggestGeneration || input.value.trim() !== query) return;
+          renderSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+        } catch (error) {
+          if (error.name !== 'AbortError' && generation === suggestGeneration) hideSuggestions();
+        }
+      }, 350);
+    }
+    input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); });
+    input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); });
+    input.addEventListener('input', () => { if (!composing) scheduleSuggestions(); });
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { cancelSuggestions(); return; }
+      if (suggestionsBox.hidden || !suggestionItems.length) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        activeSuggestion = event.key === 'ArrowDown'
+          ? (activeSuggestion + 1) % suggestionItems.length
+          : (activeSuggestion + suggestionItems.length - 1) % suggestionItems.length;
+        updateActiveSuggestion();
+        suggestionsBox.children[activeSuggestion].scrollIntoView({block: 'nearest'});
+      } else if (event.key === 'Enter' && activeSuggestion >= 0) {
+        event.preventDefault();
+        selectSuggestion(activeSuggestion);
+      }
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!event.target.closest('.search-area')) cancelSuggestions();
+    });
+
     function performSearch(query) {
       if (!query) return;
+      cancelSuggestions();
       input.value = decodeURIComponent(query);
       iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
     }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      performSearch(input.value.trim());
+      if (activeSuggestion >= 0 && !suggestionsBox.hidden) selectSuggestion(activeSuggestion);
+      else performSearch(input.value.trim());
     });
 
     // When iframe finishes loading, apply saved font size
