@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   const requestedFont = Number(font);
-  const initialFont = Number.isFinite(requestedFont) && requestedFont >= 14 && requestedFont <= 36 ? Math.round(requestedFont) : 22;
+  const initialFont = Number.isFinite(requestedFont) && requestedFont >= 14 && requestedFont <= 40 ? Math.round(requestedFont) : 22;
   const query = encodeURIComponent(q.trim());
   const lingueeUrl = `https://www.linguee.com/english-portuguese/search?source=auto&query=${query}`;
 
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         window.addEventListener('message', function(event) {
           if (event.data && event.data.type === 'SET_FONT_SIZE') {
             var px = Number(event.data.pixels);
-            if (Number.isFinite(px) && px >= 14 && px <= 36) {
+            if (Number.isFinite(px) && px >= 14 && px <= 40) {
               document.documentElement.style.setProperty('--reader-font-size', px + 'px');
               document.documentElement.style.fontSize = px + 'px';
             }

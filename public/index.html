@@ -72,13 +72,13 @@
     }
     .font-endpoint { color: var(--accent-color); font-weight: 400; line-height: 1; flex: none; }
     .font-small { font-size: 14px; }
-    .font-large { font-size: 36px; }
-    .font-slider { width: clamp(135px, 24vw, 270px); min-width: 135px; accent-color: var(--accent-color); cursor: pointer; }
+    .font-large { font-size: 40px; }
+    .font-slider { width: clamp(155px, 28vw, 310px); min-width: 155px; accent-color: var(--accent-color); cursor: pointer; }
     .font-indicator { color: var(--text-secondary); font-size: 13px; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 560px) {
       header { flex-wrap: wrap; gap: 10px; }
       .font-controls { margin-left: auto; max-width: 100%; box-sizing: border-box; }
-      .font-slider { width: clamp(135px, 39vw, 230px); }
+      .font-slider { width: clamp(155px, 43vw, 255px); }
     }
 
     .search-form {
@@ -152,7 +152,7 @@
 
       <div class="font-controls" aria-label="Reader text size">
         <span class="font-endpoint font-small" aria-hidden="true">A</span>
-        <input type="range" class="font-slider" id="font-slider" min="14" max="36" step="1" value="22" aria-label="Text size in pixels">
+        <input type="range" class="font-slider" id="font-slider" min="14" max="40" step="1" value="22" aria-label="Text size in pixels">
         <span class="font-endpoint font-large" aria-hidden="true">A</span>
         <output class="font-indicator" id="font-size-display" for="font-slider">22px</output>
       </div>
@@ -182,7 +182,7 @@
     const displaySize = document.getElementById('font-size-display');
     const STORAGE_KEY = 'linguee_reader_font_size_px';
     const savedSize = Number(localStorage.getItem(STORAGE_KEY));
-    let currentFontPx = Number.isFinite(savedSize) && savedSize >= 14 && savedSize <= 36 ? Math.round(savedSize) : 22;
+    let currentFontPx = Number.isFinite(savedSize) && savedSize >= 14 && savedSize <= 40 ? Math.round(savedSize) : 22;
 
     function applyFontSize() {
       fontSlider.value = currentFontPx;
