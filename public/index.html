@@ -84,10 +84,13 @@
     .search-area { position: relative; }
     .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; max-height: min(50vh, 390px); overflow-y: auto; box-shadow: 0 8px 22px #0009; }
     .suggestions[hidden] { display: none; }
-    .suggestion { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 14px; background: none; border: 0; border-bottom: 1px solid var(--border-color); color: var(--text-color); font: 400 var(--reader-font-size)/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+    .suggestion { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 100%; padding: 10px 14px; background: none; border: 0; border-bottom: 1px solid var(--border-color); color: var(--text-color); font: 400 var(--reader-font-size)/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
     .suggestion:last-child { border-bottom: 0; }
     .suggestion:hover, .suggestion[aria-selected="true"] { background: #303c48; }
-    .suggestion-lang { flex: none; font-size: 12px; color: var(--text-secondary); }
+    .suggestion-main { display: flex; align-items: baseline; gap: 9px; }
+    .suggestion-wordtype { color: var(--text-secondary); font-size: 0.7em; }
+    .suggestion-translations { color: var(--text-secondary); font-size: 0.78em; line-height: 1.35; }
+    .suggestion-lang { margin-left: auto; flex: none; font-size: 12px; color: var(--text-secondary); }
     .search-form {
       display: flex;
       gap: 10px;
@@ -216,8 +219,7 @@
     let suggestionItems = [];
     let activeSuggestion = -1;
     let composing = false;
-    let liveSearchTimer = null;
-    let lastSearchQuery = null;
+
 
     function hideSuggestions() {
       suggestionsBox.hidden = true;
@@ -253,12 +255,28 @@
         button.className = 'suggestion';
         button.setAttribute('role', 'option');
         button.setAttribute('aria-selected', 'false');
+        const main = document.createElement('span');
+        main.className = 'suggestion-main';
         const word = document.createElement('span');
         word.textContent = item.word;
+        main.appendChild(word);
+        if (item.pos) {
+          const pos = document.createElement('span');
+          pos.className = 'suggestion-wordtype';
+          pos.textContent = item.pos;
+          main.appendChild(pos);
+        }
         const lang = document.createElement('span');
         lang.className = 'suggestion-lang';
         lang.textContent = item.lang || 'EN / PT';
-        button.append(word, lang);
+        main.appendChild(lang);
+        button.appendChild(main);
+        if (Array.isArray(item.translations) && item.translations.length) {
+          const translations = document.createElement('span');
+          translations.className = 'suggestion-translations';
+          translations.textContent = item.translations.join(' · ');
+          button.appendChild(translations);
+        }
         button.addEventListener('pointerdown', event => event.preventDefault());
         button.addEventListener('click', () => selectSuggestion(index));
         suggestionsBox.appendChild(button);
@@ -266,27 +284,10 @@
       suggestionsBox.hidden = false;
       input.setAttribute('aria-expanded', 'true');
     }
-    // Update the full dictionary after typing pauses, independently of suggestions.
-    function scheduleLiveSearch() {
-      clearTimeout(liveSearchTimer);
-      const query = input.value.trim();
-      if (query.length < 2 || query.length > 60) return;
-      liveSearchTimer = setTimeout(() => {
-        if (input.value.trim() !== query || composing) return;
-        loadDictionary(query);
-      }, 550);
-    }
-
-    function loadDictionary(query) {
-      if (!query || query === lastSearchQuery) return;
-      lastSearchQuery = query;
-      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
-    }
-
     function scheduleSuggestions() {
       cancelSuggestions();
       const query = input.value.trim();
-      if (query.length < 2 || query.length > 60) return;
+      if (query.length < 1 || query.length > 60) return;
       const generation = suggestGeneration;
       suggestTimer = setTimeout(async () => {
         const controller = new AbortController();
@@ -300,11 +301,11 @@
         } catch (error) {
           if (error.name !== 'AbortError' && generation === suggestGeneration) hideSuggestions();
         }
-      }, 350);
+      }, 250);
     }
-    input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); clearTimeout(liveSearchTimer); });
-    input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); scheduleLiveSearch(); });
-    input.addEventListener('input', () => { if (!composing) { scheduleSuggestions(); scheduleLiveSearch(); } });
+    input.addEventListener('compositionstart', () => { composing = true; cancelSuggestions(); });
+    input.addEventListener('compositionend', () => { composing = false; scheduleSuggestions(); });
+    input.addEventListener('input', () => { if (!composing) scheduleSuggestions(); });
     input.addEventListener('keydown', event => {
       if (event.key === 'Escape') { cancelSuggestions(); return; }
       if (suggestionsBox.hidden || !suggestionItems.length) return;
@@ -326,16 +327,15 @@
 
     function performSearch(query) {
       if (!query) return;
-      clearTimeout(liveSearchTimer);
       cancelSuggestions();
       input.value = query;
-      loadDictionary(query);
+      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
     }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (activeSuggestion >= 0 && !suggestionsBox.hidden) selectSuggestion(activeSuggestion);
-      else { lastSearchQuery = null; performSearch(input.value.trim()); }
+      else performSearch(input.value.trim());
     });
 
     // When iframe finishes loading, apply saved font size
@@ -345,6 +345,7 @@
 
     // Receive tap navigation events from inside iframe
     window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
       if (event.data && event.data.type === 'LINGUEE_SEARCH') {
         performSearch(event.data.query);
       }
