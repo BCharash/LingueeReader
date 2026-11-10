@@ -15,6 +15,7 @@
       --accent-color: #4da6ff;
       --border-color: #333333;
       --input-bg: #2a2a2a;
+      --reader-font-size: 22px;
     }
 
     body {
@@ -34,6 +35,7 @@
       flex-direction: column;
       gap: 15px;
       height: 92vh;
+      min-height: 0;
     }
 
     header {
@@ -57,37 +59,25 @@
       margin: 2px 0 0 0;
     }
 
-    /* Font Adjustment Controls */
+    /* Readable font slider, with endpoint letters at their actual sizes */
     .font-controls {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 9px;
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 4px 8px;
+      padding: 7px 10px;
+      min-width: 0;
     }
-
-    .font-btn {
-      background: none;
-      border: none;
-      color: var(--accent-color);
-      font-weight: 700;
-      font-size: 1rem;
-      padding: 4px 8px;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-
-    .font-btn:hover {
-      background-color: var(--input-bg);
-    }
-
-    .font-indicator {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      min-width: 45px;
-      text-align: center;
+    .font-endpoint { color: var(--accent-color); font-weight: 400; line-height: 1; flex: none; }
+    .font-small { font-size: 14px; }
+    .font-large { font-size: 36px; }
+    .font-slider { width: clamp(75px, 15vw, 175px); min-width: 65px; accent-color: var(--accent-color); cursor: pointer; }
+    .font-indicator { color: var(--text-secondary); font-size: 13px; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+    @media (max-width: 560px) {
+      header { flex-wrap: wrap; gap: 10px; }
+      .font-controls { margin-left: auto; }
     }
 
     .search-form {
@@ -98,7 +88,11 @@
     input[type="text"] {
       flex: 1;
       padding: 12px 16px;
-      font-size: 1rem;
+      font-size: var(--reader-font-size);
+      font-family: inherit;
+      font-weight: 400;
+      min-width: 0;
+      line-height: 1.4;
       border: 1px solid var(--border-color);
       border-radius: 8px;
       background-color: var(--input-bg);
@@ -113,8 +107,8 @@
 
     .search-btn {
       padding: 12px 20px;
-      font-size: 1rem;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 500;
       background-color: var(--accent-color);
       color: #ffffff;
       border: none;
@@ -133,6 +127,7 @@
       border: 1px solid var(--border-color);
       border-radius: 10px;
       overflow: hidden;
+      min-height: 0;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       -webkit-overflow-scrolling: touch;
     }
@@ -154,11 +149,11 @@
         <p class="subtitle">Dark-mode reader with active word links</p>
       </div>
 
-      <!-- Interactive Font Adjustment Controls -->
-      <div class="font-controls">
-        <button type="button" class="font-btn" id="font-decrease" title="Decrease Font Size">A-</button>
-        <span class="font-indicator" id="font-size-display">100%</span>
-        <button type="button" class="font-btn" id="font-increase" title="Increase Font Size">A+</button>
+      <div class="font-controls" aria-label="Reader text size">
+        <span class="font-endpoint font-small" aria-hidden="true">A</span>
+        <input type="range" class="font-slider" id="font-slider" min="14" max="36" step="1" value="22" aria-label="Text size in pixels">
+        <span class="font-endpoint font-large" aria-hidden="true">A</span>
+        <output class="font-indicator" id="font-size-display" for="font-slider">22px</output>
       </div>
     </header>
 
@@ -182,47 +177,31 @@
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
     const iframe = document.getElementById('linguee-frame');
-    const btnDecrease = document.getElementById('font-decrease');
-    const btnIncrease = document.getElementById('font-increase');
+    const fontSlider = document.getElementById('font-slider');
     const displaySize = document.getElementById('font-size-display');
-
-    // Retrieve saved font size or fallback to 100% default
-    const STORAGE_KEY = 'linguee_reader_font_size';
-    let currentFontPercent = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 100;
-    
-    // Step increment set to 5% steps
-    const STEP_SIZE = 5;
+    const STORAGE_KEY = 'linguee_reader_font_size_px';
+    const savedSize = Number(localStorage.getItem(STORAGE_KEY));
+    let currentFontPx = Number.isFinite(savedSize) && savedSize >= 14 && savedSize <= 36 ? Math.round(savedSize) : 22;
 
     function applyFontSize() {
-      displaySize.textContent = `${currentFontPercent}%`;
-      
-      // Save to localStorage whenever updated
-      localStorage.setItem(STORAGE_KEY, currentFontPercent);
-
-      // Post scale message directly to the iframe
+      fontSlider.value = currentFontPx;
+      displaySize.textContent = `${currentFontPx}px`;
+      document.documentElement.style.setProperty('--reader-font-size', `${currentFontPx}px`);
+      localStorage.setItem(STORAGE_KEY, String(currentFontPx));
       if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: 'SET_FONT_SIZE', percent: currentFontPercent }, '*');
+        iframe.contentWindow.postMessage({ type: 'SET_FONT_SIZE', pixels: currentFontPx }, window.location.origin);
       }
     }
 
-    btnIncrease.addEventListener('click', () => {
-      if (currentFontPercent < 200) {
-        currentFontPercent += STEP_SIZE;
-        applyFontSize();
-      }
-    });
-
-    btnDecrease.addEventListener('click', () => {
-      if (currentFontPercent > 50) {
-        currentFontPercent -= STEP_SIZE;
-        applyFontSize();
-      }
+    fontSlider.addEventListener('input', () => {
+      currentFontPx = Number(fontSlider.value);
+      applyFontSize();
     });
 
     function performSearch(query) {
       if (!query) return;
       input.value = decodeURIComponent(query);
-      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPercent}`;
+      iframe.src = `/api/translate?q=${encodeURIComponent(query)}&font=${currentFontPx}`;
     }
 
     form.addEventListener('submit', (e) => {
@@ -242,8 +221,8 @@
       }
     });
 
-    // Set initial display percentage on launch
-    displaySize.textContent = `${currentFontPercent}%`;
+    // Apply the saved size to the search field before any search.
+    applyFontSize();
   </script>
 </body>
 </html>

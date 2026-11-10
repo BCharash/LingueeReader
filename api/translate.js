@@ -5,7 +5,8 @@ export default async function handler(req, res) {
     return res.status(400).send('<p style="color:white;text-align:center;">Please enter a search term.</p>');
   }
 
-  const initialFont = font ? parseInt(font, 10) : 115;
+  const requestedFont = Number(font);
+  const initialFont = Number.isFinite(requestedFont) && requestedFont >= 14 && requestedFont <= 36 ? Math.round(requestedFont) : 22;
   const query = encodeURIComponent(q.trim());
   const lingueeUrl = `https://www.linguee.com/english-portuguese/search?source=auto&query=${query}`;
 
@@ -35,7 +36,11 @@ export default async function handler(req, res) {
         // Dynamic Font Scaler Listener
         window.addEventListener('message', function(event) {
           if (event.data && event.data.type === 'SET_FONT_SIZE') {
-            document.documentElement.style.fontSize = event.data.percent + '%';
+            var px = Number(event.data.pixels);
+            if (Number.isFinite(px) && px >= 14 && px <= 36) {
+              document.documentElement.style.setProperty('--reader-font-size', px + 'px');
+              document.documentElement.style.fontSize = px + 'px';
+            }
           }
         });
 
@@ -77,7 +82,8 @@ export default async function handler(req, res) {
     const darkStyles = `
       <style>
         html {
-          font-size: ${initialFont}% !important;
+          font-size: ${initialFont}px !important;
+          --reader-font-size: ${initialFont}px;
         }
 
         body {
@@ -85,7 +91,10 @@ export default async function handler(req, res) {
           color: #e0e0e0 !important;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
           padding: 10px !important;
-          line-height: 1.6 !important;
+          font-size: var(--reader-font-size) !important;
+          font-weight: 400 !important;
+          line-height: 1.55 !important;
+          overflow-wrap: anywhere !important;
           -webkit-tap-highlight-color: rgba(77, 166, 255, 0.3) !important;
         }
 
@@ -100,14 +109,17 @@ export default async function handler(req, res) {
           color: #e0e0e0 !important;
           border: 1px solid #333333 !important;
           border-radius: 8px !important;
-          padding: 1rem !important;
-          margin-bottom: 1rem !important;
+          padding: 0.65em !important;
+          margin-bottom: 0.8em !important;
+          height: auto !important;
+          min-height: 0 !important;
+          box-sizing: border-box !important;
         }
 
         /* Lookup Headings (e.g., "happy") */
         .lemma .tag_lemma a, .lemma h2, .exact .tag_lemma, .headline_translation {
-          font-size: 1.5rem !important;
-          font-weight: 700 !important;
+          font-size: 1.12em !important;
+          font-weight: 500 !important;
         }
 
         /* TARGETED FIX: Translated Target Words (e.g., "feliz", "satisfeito") */
@@ -117,9 +129,9 @@ export default async function handler(req, res) {
         .translation_desc .dictLink,
         a.dictLink,
         .dictLink {
-          font-size: 1.35rem !important;
-          font-weight: 600 !important;
-          line-height: 1.4 !important;
+          font-size: 1em !important;
+          font-weight: 400 !important;
+          line-height: 1.55 !important;
         }
 
         /* High-Contrast Links & Words */
@@ -136,7 +148,7 @@ export default async function handler(req, res) {
         .tag_lemma, .tag_type, .wordtype, .tag_trans {
           color: #a0a0a0 !important;
           font-style: italic !important;
-          font-size: 0.95rem !important;
+          font-size: 0.85em !important;
           font-weight: normal !important;
         }
 
@@ -144,17 +156,35 @@ export default async function handler(req, res) {
         .example, .sentence, tr.e_row, tr.d_row {
           background-color: #252525 !important;
           color: #d0d0d0 !important;
-          font-size: 1rem !important;
+          font-size: 1em !important;
         }
         .example .tag_s, .example .tag_t {
           color: #ffffff !important;
-          font-size: 1rem !important;
+          font-size: 1em !important;
         }
+
+        /* Let enlarged dictionary content wrap instead of colliding with fixed boxes. */
+        #content_container, #content_container * {
+          box-sizing: border-box !important;
+          max-width: 100% !important;
+        }
+        #content_container .lemma, #content_container .translation,
+        #content_container .translation_lines, #content_container .example,
+        #content_container .sentence, #content_container .dictLink,
+        #content_container .tag_lemma, #content_container .tag_trans {
+          height: auto !important;
+          min-height: 0 !important;
+          line-height: 1.55 !important;
+          overflow-wrap: anywhere !important;
+          white-space: normal !important;
+        }
+        #content_container table { width: 100% !important; table-layout: auto !important; }
+        #content_container td { height: auto !important; vertical-align: top !important; overflow-wrap: anywhere !important; }
 
         td {
           border-color: #333333 !important;
-          padding: 0.6rem !important;
-          font-size: 1rem !important;
+          padding: 0.45em !important;
+          font-size: 1em !important;
         }
       </style>
       <base href="https://www.linguee.com/">
