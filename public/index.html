@@ -88,7 +88,7 @@
     .settings-panel[hidden] { display: none; }
     .settings-panel h2 { font-size: 1.1rem; margin: 0 0 12px; }
     .settings-fields { display: flex; gap: 16px; flex-wrap: wrap; }
-    .settings-fields label { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; font-size: 14px; color: var(--text-secondary); }
+    .settings-fields label { display: grid; grid-template-rows: 2.6em auto; align-content: start; gap: 6px; flex: 1; min-width: 150px; font-size: 14px; color: var(--text-secondary); }
     .settings-fields select { font: inherit; font-size: 16px; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 7px; padding: 9px; }
     .search-area { position: relative; }
     .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; max-height: min(50vh, 390px); overflow-y: auto; box-shadow: 0 8px 22px #0009; }
