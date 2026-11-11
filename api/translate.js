@@ -21,26 +21,34 @@ export default async function handler(req, res) {
       return res.status(response.status).send('<p style="color:white;text-align:center;">Unable to load Linguee data.</p>');
     }
 
-    // Decode the original bytes using the encoding declared by Linguee, if any.
-    // A strict UTF-8 check prevents silently replacing accented characters with �.
-    const buffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
+    // Linguee can return UTF-8 or a legacy Western encoding. Check the actual
+    // bytes before trusting a possibly stale HTTP/HTML charset declaration.
+    const bytes = new Uint8Array(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') || '';
-    const headerCharset = /charset\s*=\s*[\"']?([^;\s\"']+)/i.exec(contentType)?.[1];
-    // HTML charset declarations use ASCII characters, so the initial bytes can be
-    // inspected safely without first deciding how to decode the full document.
+    const headerCharset = /charset\s*=\s*["']?([^;\s"']+)/i.exec(contentType)?.[1];
     const prefix = new TextDecoder('windows-1252').decode(bytes.subarray(0, 8192));
-    const metaCharset = /<meta\s+[^>]*charset\s*=\s*[\"']?([^\s\"'/>;]+)/i.exec(prefix)?.[1]
-      || /<meta\s+[^>]*content\s*=\s*[\"'][^\"']*charset\s*=\s*([^;\s\"']+)/i.exec(prefix)?.[1];
-    const declaredCharset = headerCharset || metaCharset || 'utf-8';
+    const metaCharset = /<meta\s+[^>]*charset\s*=\s*["']?([^\s"'/>;]+)/i.exec(prefix)?.[1]
+      || /<meta\s+[^>]*content\s*=\s*["'][^"']*charset\s*=\s*([^;\s"']+)/i.exec(prefix)?.[1];
     let html;
     try {
-      html = new TextDecoder(declaredCharset, { fatal: true }).decode(bytes);
+      // UTF-8 is preferred only if *all* bytes form valid UTF-8.
+      html = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     } catch {
-      // Some responses have no charset or an incorrect declaration.
-      // Prefer valid UTF-8; otherwise use the common legacy Western encoding.
-      try { html = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+      const legacyCharset = headerCharset && !/^utf-?8$/i.test(headerCharset)
+        ? headerCharset
+        : metaCharset && !/^utf-?8$/i.test(metaCharset)
+          ? metaCharset
+          : 'windows-1252';
+      try { html = new TextDecoder(legacyCharset, { fatal: true }).decode(bytes); }
       catch { html = new TextDecoder('windows-1252').decode(bytes); }
+    }
+
+    // A replacement character already in the decoded source cannot be repaired
+    // by changing the browser's charset. Log its presence for diagnosis.
+    if (html.includes('\uFFFD')) {
+      console.warn('Linguee response contains Unicode replacement characters after decoding', {
+        query: q, headerCharset, metaCharset
+      });
     }
 
     // Universal link interceptor & font change message handler
@@ -233,8 +241,11 @@ export default async function handler(req, res) {
       <base href="https://www.linguee.com/">
     `;
 
-    // Inject meta charset UTF-8 alongside scripts and styles
-    html = html.replace('<head>', `<head><meta charset="UTF-8">${interceptorScript}${darkStyles}`);
+    // Remove any upstream charset declarations before supplying our own UTF-8
+    // declaration. The response is sent as a UTF-8 JavaScript string.
+    html = html.replace(/<meta\b[^>]*charset\s*=\s*[^>]*>/gi, '');
+    html = html.replace(/<head\b([^>]*)>/i,
+      (_, attrs) => `<head${attrs}><meta charset="UTF-8">${interceptorScript}${darkStyles}`);
 
     // Set response header explicitly to UTF-8
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
