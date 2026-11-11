@@ -133,6 +133,12 @@
       transition: opacity 0.2s;
     }
 
+    .reset-btn { flex: none; width: 46px; padding: 0; display: grid; place-items: center;
+      border: 1px solid var(--border-color); border-radius: 8px;
+      background: var(--card-bg); color: var(--text-color); cursor: pointer; }
+    .reset-btn:hover { background: #383838; }
+    .reset-btn svg { width: 22px; height: 22px; }
+
     .search-btn:hover {
       opacity: 0.9;
     }
@@ -186,6 +192,9 @@
       <button type="button" class="clear-input" id="clear-input" aria-label="Clear search" title="Clear search" hidden>×</button>
       </div>
       <button type="submit" class="search-btn">Search</button>
+      <button type="button" class="reset-btn" id="reset-page" aria-label="Clear page" title="Clear page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+      </button>
     </form>
     <div id="suggestions" class="suggestions" role="listbox" aria-label="Word suggestions" hidden></div>
     </div>
@@ -202,6 +211,13 @@
     function updateClearButton() { clearInput.hidden = input.value.length === 0; }
     clearInput.addEventListener('click', () => { input.value = ''; cancelSuggestions(); updateClearButton(); input.focus(); });
     const iframe = document.getElementById('linguee-frame');
+    document.getElementById('reset-page').addEventListener('click', () => {
+      cancelSuggestions();
+      input.value = '';
+      updateClearButton();
+      iframe.src = 'about:blank';
+      input.focus();
+    });
     const fontSlider = document.getElementById('font-slider');
     const displaySize = document.getElementById('font-size-display');
     const STORAGE_KEY = 'linguee_reader_font_size_px';

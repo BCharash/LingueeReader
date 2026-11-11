@@ -21,12 +21,27 @@ export default async function handler(req, res) {
       return res.status(response.status).send('<p style="color:white;text-align:center;">Unable to load Linguee data.</p>');
     }
 
-    // 1. Grab raw binary buffer from Linguee
+    // Decode the original bytes using the encoding declared by Linguee, if any.
+    // A strict UTF-8 check prevents silently replacing accented characters with �.
     const buffer = await response.arrayBuffer();
-
-    // 2. Decode using ISO-8859-1 (Latin-1) so Portuguese accents (ã, ç, é) map correctly
-    const decoder = new TextDecoder('iso-8859-1');
-    let html = decoder.decode(buffer);
+    const bytes = new Uint8Array(buffer);
+    const contentType = response.headers.get('content-type') || '';
+    const headerCharset = /charset\s*=\s*[\"']?([^;\s\"']+)/i.exec(contentType)?.[1];
+    // HTML charset declarations use ASCII characters, so the initial bytes can be
+    // inspected safely without first deciding how to decode the full document.
+    const prefix = new TextDecoder('windows-1252').decode(bytes.subarray(0, 8192));
+    const metaCharset = /<meta\s+[^>]*charset\s*=\s*[\"']?([^\s\"'/>;]+)/i.exec(prefix)?.[1]
+      || /<meta\s+[^>]*content\s*=\s*[\"'][^\"']*charset\s*=\s*([^;\s\"']+)/i.exec(prefix)?.[1];
+    const declaredCharset = headerCharset || metaCharset || 'utf-8';
+    let html;
+    try {
+      html = new TextDecoder(declaredCharset, { fatal: true }).decode(bytes);
+    } catch {
+      // Some responses have no charset or an incorrect declaration.
+      // Prefer valid UTF-8; otherwise use the common legacy Western encoding.
+      try { html = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+      catch { html = new TextDecoder('windows-1252').decode(bytes); }
+    }
 
     // Universal link interceptor & font change message handler
     const interceptorScript = `
@@ -52,16 +67,17 @@ export default async function handler(req, res) {
             if (href) {
               var term = '';
 
-              var queryMatch = href.match(/query=([^&]+)/);
-              if (queryMatch && queryMatch[1]) {
-                term = decodeURIComponent(queryMatch[1]);
-              } else if (href.includes('/translation/') || href.endsWith('.html')) {
-                var pathParts = href.split('/');
-                var filename = pathParts[pathParts.length - 1];
-                term = filename.replace('.html', '').replace(/\\+/g, ' ');
-              } else if (href.includes('/search')) {
-                var parts = href.split('query=');
-                if (parts[1]) term = decodeURIComponent(parts[1]);
+              // URLSearchParams decodes UTF-8 percent escapes and '+' correctly.
+              // Decode path components too; never propagate malformed escapes.
+              try {
+                var url = new URL(href, document.baseURI);
+                term = url.searchParams.get('query') || '';
+                if (!term && url.pathname.endsWith('.html')) {
+                  var filename = url.pathname.split('/').pop().replace(/\.html$/i, '');
+                  term = decodeURIComponent(filename).replace(/\+/g, ' ');
+                }
+              } catch (error) {
+                term = '';
               }
 
               if (term) {
