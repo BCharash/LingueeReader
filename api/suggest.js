@@ -53,10 +53,10 @@ module.exports = async (req, res) => {
         const term = copy.text().replace(/\s+/g, ' ').trim();
         if (term && !translations.includes(term)) translations.push(term);
       });
-      suggestions.push({ word, lang, pos, translations: translations.slice(0, 4) });
+      suggestions.push({ word, lang, pos, translations: translations.slice(0, 10) });
     });
     res.setHeader('Cache-Control', 'public, s-maxage=60');
-    return res.status(200).json({ suggestions: suggestions.slice(0, 20) });
+    return res.status(200).json({ suggestions: suggestions.slice(0, 50) });
   } catch (error) {
     console.error('Linguee autocomplete request failed:', error.message);
     return res.status(502).json({ error: 'Autocomplete temporarily unavailable', suggestions: [] });

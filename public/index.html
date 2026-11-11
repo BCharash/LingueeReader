@@ -81,6 +81,15 @@
       .font-slider { width: clamp(155px, 43vw, 255px); }
     }
 
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .settings-button { width: 42px; height: 42px; flex: none; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-color); font-size: 24px; cursor: pointer; }
+    .settings-button:hover { background: #383838; }
+    .settings-panel { border: 1px solid var(--border-color); border-radius: 10px; background: var(--card-bg); padding: 16px; }
+    .settings-panel[hidden] { display: none; }
+    .settings-panel h2 { font-size: 1.1rem; margin: 0 0 12px; }
+    .settings-fields { display: flex; gap: 16px; flex-wrap: wrap; }
+    .settings-fields label { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; font-size: 14px; color: var(--text-secondary); }
+    .settings-fields select { font: inherit; font-size: 16px; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 7px; padding: 9px; }
     .search-area { position: relative; }
     .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; max-height: min(50vh, 390px); overflow-y: auto; box-shadow: 0 8px 22px #0009; }
     .suggestions[hidden] { display: none; }
@@ -171,13 +180,28 @@
         <p class="subtitle">Dark-mode reader with active word links</p>
       </div>
 
+      <div class="header-actions">
       <div class="font-controls" aria-label="Reader text size">
         <span class="font-endpoint font-small" aria-hidden="true">A</span>
         <input type="range" class="font-slider" id="font-slider" min="14" max="40" step="1" value="22" aria-label="Text size in pixels">
         <span class="font-endpoint font-large" aria-hidden="true">A</span>
         <output class="font-indicator" id="font-size-display" for="font-slider">22px</output>
       </div>
+      <button type="button" class="settings-button" id="settings-toggle" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="settings-panel">⚙</button>
+      </div>
     </header>
+
+    <section class="settings-panel" id="settings-panel" aria-label="Settings" hidden>
+      <h2>Autocomplete settings</h2>
+      <div class="settings-fields">
+        <label for="max-suggestions">Maximum suggestions
+          <select id="max-suggestions"><option>5</option><option>10</option><option selected>20</option><option>30</option><option>50</option></select>
+        </label>
+        <label for="max-translations">Translations per suggestion
+          <select id="max-translations"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select>
+        </label>
+      </div>
+    </section>
 
     <div class="search-area">
     <form class="search-form" id="search-form">
@@ -239,6 +263,30 @@
       applyFontSize();
     });
 
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsToggle = document.getElementById('settings-toggle');
+    const maxSuggestionsSelect = document.getElementById('max-suggestions');
+    const maxTranslationsSelect = document.getElementById('max-translations');
+    function restoreSetting(element, key) {
+      const stored = localStorage.getItem(key);
+      if (stored && [...element.options].some(option => option.value === stored)) element.value = stored;
+    }
+    restoreSetting(maxSuggestionsSelect, 'linguee_reader_max_suggestions');
+    restoreSetting(maxTranslationsSelect, 'linguee_reader_max_translations');
+    settingsToggle.addEventListener('click', () => {
+      settingsPanel.hidden = !settingsPanel.hidden;
+      settingsToggle.setAttribute('aria-expanded', String(!settingsPanel.hidden));
+      if (!settingsPanel.hidden) cancelSuggestions();
+    });
+    maxSuggestionsSelect.addEventListener('change', () => {
+      localStorage.setItem('linguee_reader_max_suggestions', maxSuggestionsSelect.value);
+      cancelSuggestions();
+    });
+    maxTranslationsSelect.addEventListener('change', () => {
+      localStorage.setItem('linguee_reader_max_translations', maxTranslationsSelect.value);
+      cancelSuggestions();
+    });
+
     const suggestionsBox = document.getElementById('suggestions');
     let suggestTimer = null;
     let suggestController = null;
@@ -272,7 +320,8 @@
       performSearch(item.word);
     }
     function renderSuggestions(items) {
-      suggestionItems = items;
+      suggestionItems = items.slice(0, Number(maxSuggestionsSelect.value));
+      items = suggestionItems;
       suggestionsBox.replaceChildren();
       activeSuggestion = -1;
       if (!items.length) { hideSuggestions(); return; }
@@ -301,7 +350,7 @@
         if (Array.isArray(item.translations) && item.translations.length) {
           const translations = document.createElement('span');
           translations.className = 'suggestion-translations';
-          translations.textContent = item.translations.join(' · ');
+          translations.textContent = item.translations.slice(0, Number(maxTranslationsSelect.value)).join(' · ');
           button.appendChild(translations);
         }
         button.addEventListener('pointerdown', event => event.preventDefault());
