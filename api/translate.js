@@ -67,36 +67,44 @@ export default async function handler(req, res) {
           }
         });
 
-        // Universal link interceptor
+        // Keep dictionary navigation inside Linguee Reader. The visible word
+        // is preferable when Linguee's URL contains legacy-encoded accents.
         document.addEventListener('click', function(e) {
           var link = e.target.closest('a');
-          if (link) {
-            var href = link.getAttribute('href');
-            if (href) {
-              var term = '';
+          if (!link) return;
+          var href = link.getAttribute('href');
+          if (!href || href.charAt(0) === '#') return;
 
-              // URLSearchParams decodes UTF-8 percent escapes and '+' correctly.
-              // Decode path components too; never propagate malformed escapes.
-              try {
-                var url = new URL(href, document.baseURI);
-                term = url.searchParams.get('query') || '';
-                if (!term && url.pathname.endsWith('.html')) {
-                  var filename = url.pathname.split('/').pop().replace(/\.html$/i, '');
-                  term = decodeURIComponent(filename).replace(/\+/g, ' ');
-                }
-              } catch (error) {
-                term = '';
-              }
+          var url;
+          try { url = new URL(href, document.baseURI); }
+          catch (error) { return; }
+          var isLinguee = /(^|\.)linguee\.(com|pt|de|fr|es|it|nl|pl|ru|br)$/i.test(url.hostname);
+          if (!isLinguee) return;
 
-              if (term) {
-                e.preventDefault();
-                e.stopPropagation();
-                window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
-              } else if (href.startsWith('http')) {
-                e.preventDefault();
-                window.open(href, '_blank');
-              }
+          // Stop Linguee's own navigation, including relative links.
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          var isDictionaryLink = link.classList.contains('dictLink') ||
+            !!link.closest('.tag_lemma, .tag_trans, .translation, .lemma, .dictionary');
+          var visible = (link.textContent || '').replace(/\s+/g, ' ').trim();
+          var term = '';
+          try {
+            term = url.searchParams.get('query') || url.searchParams.get('q') || '';
+            if (!term && /\.html$/i.test(url.pathname)) {
+              term = decodeURIComponent(url.pathname.split('/').pop().replace(/\.html$/i, ''))
+                .replace(/\+/g, ' ');
             }
+          } catch (error) { term = ''; }
+
+          // If the URL's character encoding is damaged, the visible link text
+          // still contains the correctly decoded accented dictionary word.
+          if (isDictionaryLink && visible && (!term || term.includes('\uFFFD') || term.includes('�'))) {
+            term = visible;
+          }
+          if (!term && isDictionaryLink) term = visible;
+          if (term && !term.includes('\uFFFD') && !term.includes('�')) {
+            window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
           }
         }, true);
       </script>

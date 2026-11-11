@@ -18,11 +18,20 @@ module.exports = async (req, res) => {
         'Referer': 'https://www.linguee.pt/portugues-ingles/'
       }
     });
-    const contentType = response.headers['content-type'] || '';
-    const charset = /charset=([^;\s]+)/i.exec(contentType)?.[1] || 'utf-8';
+    // The autocomplete fragment may use a Western single-byte encoding even
+    // when the response advertises UTF-8. Nonfatal decoding silently inserts
+    // replacement characters, so test UTF-8 strictly before falling back.
+    const bytes = new Uint8Array(response.data);
     let html;
-    try { html = new TextDecoder(charset).decode(response.data); }
-    catch { html = new TextDecoder('utf-8').decode(response.data); }
+    try {
+      html = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      const contentType = response.headers['content-type'] || '';
+      const declared = /charset\s*=\s*["']?([^;\s"']+)/i.exec(contentType)?.[1];
+      const legacy = declared && !/^utf-?8$/i.test(declared) ? declared : 'windows-1252';
+      try { html = new TextDecoder(legacy, { fatal: true }).decode(bytes); }
+      catch { html = new TextDecoder('windows-1252').decode(bytes); }
+    }
     const $ = cheerio.load(html);
     const suggestions = [];
     const seen = new Set();
