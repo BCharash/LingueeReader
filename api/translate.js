@@ -67,46 +67,51 @@ export default async function handler(req, res) {
           }
         });
 
-        // Keep dictionary navigation inside Linguee Reader. The visible word
-        // is preferable when Linguee's URL contains legacy-encoded accents.
-        document.addEventListener('click', function(e) {
-          var link = e.target.closest('a');
+        // Capture navigation before Linguee's own click handlers can open a
+        // new page, change the iframe, or create a nested document window.
+        function routeDictionaryClick(e) {
+          var target = e.target;
+          if (!target || !target.closest) return;
+          var link = target.closest('a');
           if (!link) return;
-          var href = link.getAttribute('href');
+          var href = (link.getAttribute('href') || '').trim();
           if (!href || href.charAt(0) === '#') return;
 
-          var url;
-          try { url = new URL(href, document.baseURI); }
-          catch (error) { return; }
-          var isLinguee = /(^|\.)linguee\.(com|pt|de|fr|es|it|nl|pl|ru|br)$/i.test(url.hostname);
-          if (!isLinguee) return;
+          var dictionaryLink = link.matches('.dictLink, .tag_lemma a, .tag_trans a') ||
+            !!link.closest('.dictionary, .lemma, .translation, .tag_lemma, .tag_trans, .exact, .inexact');
+          var url = null;
+          try { url = new URL(href, document.baseURI); } catch (error) {}
+          var lingueeLink = url && /(^|\.)linguee\.(com|pt|de|fr|es|it|nl|pl|ru|br)$/i.test(url.hostname);
+          var searchLink = url && /\/(search|translation)\b/i.test(url.pathname);
 
-          // Stop Linguee's own navigation, including relative links.
+          // Only take over dictionary navigation. Leave unrelated external
+          // links (e.g. source citations) to their normal behavior.
+          if (!dictionaryLink && !(lingueeLink && searchLink)) return;
+
+          // Never allow a dictionary link to navigate its own frame or popup.
           e.preventDefault();
           e.stopImmediatePropagation();
+          e.stopPropagation();
 
-          var isDictionaryLink = link.classList.contains('dictLink') ||
-            !!link.closest('.tag_lemma, .tag_trans, .translation, .lemma, .dictionary');
           var visible = (link.textContent || '').replace(/\s+/g, ' ').trim();
           var term = '';
-          try {
-            term = url.searchParams.get('query') || url.searchParams.get('q') || '';
-            if (!term && /\.html$/i.test(url.pathname)) {
-              term = decodeURIComponent(url.pathname.split('/').pop().replace(/\.html$/i, ''))
-                .replace(/\+/g, ' ');
-            }
-          } catch (error) { term = ''; }
-
-          // If the URL's character encoding is damaged, the visible link text
-          // still contains the correctly decoded accented dictionary word.
-          if (isDictionaryLink && visible && (!term || term.includes('\uFFFD') || term.includes('�'))) {
-            term = visible;
+          if (url) {
+            try {
+              term = url.searchParams.get('query') || url.searchParams.get('q') || '';
+              if (!term && /\.html$/i.test(url.pathname)) {
+                term = decodeURIComponent(url.pathname.split('/').pop().replace(/\.html$/i, ''))
+                  .replace(/\+/g, ' ');
+              }
+            } catch (error) { term = ''; }
           }
-          if (!term && isDictionaryLink) term = visible;
-          if (term && !term.includes('\uFFFD') && !term.includes('�')) {
-            window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
-          }
-        }, true);
+          // For dictionary words, visible text is often more reliable than
+          // Linguee's legacy-encoded URLs, especially for accented terms.
+          if (dictionaryLink && visible && !/[\uFFFD]/.test(visible)) term = visible;
+          if (!term || /[\uFFFD]/.test(term)) return;
+          window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
+        }
+        window.addEventListener('click', routeDictionaryClick, true);
+        window.addEventListener('auxclick', routeDictionaryClick, true);
       </script>
     `;
 
