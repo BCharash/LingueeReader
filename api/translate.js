@@ -77,7 +77,7 @@ export default async function handler(req, res) {
           var href = (link.getAttribute('href') || '').trim();
           if (!href || href.charAt(0) === '#') return;
 
-          var dictionaryLink = link.matches('.dictLink, .tag_lemma a, .tag_trans a') ||
+          var dictionaryLink = link.hasAttribute('data-reader-term') || link.matches('.dictLink, .tag_lemma a, .tag_trans a') ||
             !!link.closest('.dictionary, .lemma, .translation, .tag_lemma, .tag_trans, .exact, .inexact');
           var url = null;
           try { url = new URL(href, document.baseURI); } catch (error) {}
@@ -95,7 +95,10 @@ export default async function handler(req, res) {
 
           var visible = (link.textContent || '').replace(/\s+/g, ' ').trim();
           var term = '';
-          if (url) {
+          if (link.hasAttribute('data-reader-term')) {
+            try { term = decodeURIComponent(link.getAttribute('data-reader-term')); } catch (error) {}
+          }
+          if (!term && url) {
             try {
               term = url.searchParams.get('query') || url.searchParams.get('q') || '';
               if (!term && /\.html$/i.test(url.pathname)) {
@@ -106,7 +109,7 @@ export default async function handler(req, res) {
           }
           // For dictionary words, visible text is often more reliable than
           // Linguee's legacy-encoded URLs, especially for accented terms.
-          if (dictionaryLink && visible && !/[\uFFFD]/.test(visible)) term = visible;
+          if (!link.hasAttribute('data-reader-term') && dictionaryLink && visible && !/[\uFFFD]/.test(visible)) term = visible;
           if (!term || /[\uFFFD]/.test(term)) return;
           window.parent.postMessage({ type: 'LINGUEE_SEARCH', query: term }, '*');
         }
@@ -253,6 +256,48 @@ export default async function handler(req, res) {
       </style>
       <base href="https://www.linguee.com/">
     `;
+
+    // Linguee's own scripts can navigate before/around our click interceptor.
+    // Dictionary pages are server-rendered, so remove upstream scripts and
+    // convert their dictionary links into local reader URLs before delivery.
+    html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+
+    function decodeEntities(value) {
+      return value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|nbsp|lt|gt);/gi, (match, entity) => {
+        const named = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>' };
+        const lower = entity.toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(named, lower)) return named[lower];
+        const cp = lower.startsWith('#x') ? parseInt(lower.slice(2), 16) : parseInt(lower.slice(1), 10);
+        try { return String.fromCodePoint(cp); } catch { return match; }
+      });
+    }
+
+    html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, (whole, attrs, inner) => {
+      const match = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attrs);
+      if (!match) return whole;
+      const href = decodeEntities(match[1] ?? match[2] ?? match[3]);
+      if (!href || href.startsWith('#') || /^(javascript|mailto|tel):/i.test(href)) return whole;
+      let url;
+      try { url = new URL(href, 'https://www.linguee.com/'); } catch { return whole; }
+      if (!/(^|\.)linguee\.(com|pt|de|fr|es|it|nl|pl|ru|br)$/i.test(url.hostname)) return whole;
+      const dictionaryContext = /\b(?:dictLink|tag_lemma|tag_trans)\b/i.test(attrs);
+      const searchUrl = /\/(?:search|translation)\b/i.test(url.pathname) || /\.html$/i.test(url.pathname);
+      if (!dictionaryContext && !searchUrl) return whole;
+
+      const visible = decodeEntities(inner.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
+      let term = url.searchParams.get('query') || url.searchParams.get('q') || '';
+      if (!term && /\.html$/i.test(url.pathname)) {
+        try { term = decodeURIComponent(url.pathname.split('/').pop().replace(/\.html$/i, '')).replace(/\+/g, ' '); }
+        catch { term = ''; }
+      }
+      if (dictionaryContext && visible && !visible.includes('\uFFFD')) term = visible;
+      if (!term || term.includes('\uFFFD')) return whole;
+      const localHref = `/api/translate?q=${encodeURIComponent(term)}&font=${initialFont}`;
+      const safeAttrs = attrs.replace(/\bhref\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, '')
+        .replace(/\btarget\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/\bonclick\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+      return `<a${safeAttrs} href="${localHref}" target="_self" data-reader-term="${encodeURIComponent(term)}">${inner}</a>`;
+    });
 
     // Remove any upstream charset declarations before supplying our own UTF-8
     // declaration. The response is sent as a UTF-8 JavaScript string.
