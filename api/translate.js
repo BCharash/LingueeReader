@@ -272,6 +272,11 @@ export default async function handler(req, res) {
       });
     }
 
+    // A root-relative /api URL would resolve against Linguee's <base href>,
+    // not against our application. Build a same-origin absolute fallback URL.
+    const requestHost = req.headers.host;
+    const appOrigin = requestHost ? `https://${requestHost}` : null;
+
     html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, (whole, attrs, inner) => {
       const match = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attrs);
       if (!match) return whole;
@@ -292,7 +297,8 @@ export default async function handler(req, res) {
       }
       if (dictionaryContext && visible && !visible.includes('\uFFFD')) term = visible;
       if (!term || term.includes('\uFFFD')) return whole;
-      const localHref = `/api/translate?q=${encodeURIComponent(term)}&font=${initialFont}`;
+      if (!appOrigin) return whole;
+      const localHref = `${appOrigin}/api/translate?q=${encodeURIComponent(term)}&font=${initialFont}`;
       const safeAttrs = attrs.replace(/\bhref\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, '')
         .replace(/\btarget\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
         .replace(/\bonclick\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
