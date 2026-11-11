@@ -366,8 +366,22 @@
       else performSearch(input.value.trim());
     });
 
-    // When iframe finishes loading, apply saved font size
+    // Keep the search box synchronized when a rewritten dictionary link
+    // navigates the iframe directly (without sending a postMessage).
     iframe.addEventListener('load', () => {
+      try {
+        const frameUrl = new URL(iframe.contentWindow.location.href);
+        if (frameUrl.origin === window.location.origin && frameUrl.pathname === '/api/translate') {
+          const displayedTerm = frameUrl.searchParams.get('q');
+          if (displayedTerm && displayedTerm !== input.value) {
+            cancelSuggestions();
+            input.value = displayedTerm;
+            updateClearButton();
+          }
+        }
+      } catch (error) {
+        // Ignore blank or cross-origin frames; do not disturb the search box.
+      }
       applyFontSize();
     });
 
